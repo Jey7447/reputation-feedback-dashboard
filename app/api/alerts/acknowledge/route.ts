@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "alertId and acknowledgedBy are required." }, { status: 400 });
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.rpc("acknowledge_manager_alert", {
       p_alert_id: alertId,
       p_acknowledged_by: acknowledgedBy,
