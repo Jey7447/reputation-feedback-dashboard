@@ -1,24 +1,21 @@
 import { AlertPreview } from "@/components/dashboard/alert-preview";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { getDashboardAlerts } from "@/lib/dashboard-data";
 
-const alerts = [
-  {
-    customer: "Sarah Wilson",
-    job: "JOB-1008",
-    type: "High severity",
-    severity: "High",
-    status: "Resolved",
-  },
-  {
-    customer: "John Doe",
-    job: "JOB-1007",
-    type: "Repeat negative",
-    severity: "High",
-    status: "Pending",
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  let alerts = [];
+  let dataError = "";
+
+  try {
+    alerts = await getDashboardAlerts();
+  } catch (error) {
+    dataError = error instanceof Error ? error.message : "Unable to load dashboard data.";
+  }
+
+  const pendingAlerts = alerts.filter((alert) => alert.alert_status === "pending").length;
+
   return (
     <div className="mx-auto max-w-7xl p-5 sm:p-8">
       <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -35,69 +32,37 @@ export default function DashboardPage() {
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
           <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          Automation active
+          {dataError ? "Database setup required" : "Database connected"}
         </div>
       </header>
 
+      {dataError && (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <strong>Database connection:</strong> {dataError}
+          <p className="mt-1 text-red-600">
+            Add the Supabase values from .env.example to your local environment.
+          </p>
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total feedback" value="8" detail="All time" />
-        <StatCard label="Positive" value="1" detail="12.5%" tone="success" />
-        <StatCard label="Negative" value="6" detail="75%" tone="danger" />
-        <StatCard label="Human review" value="1" detail="Needs review" tone="warning" />
-        <StatCard label="Manager alerts" value="1" detail="Pending" tone="danger" />
-      </section>
-
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="font-semibold text-slate-950">Sentiment overview</h2>
-            <p className="mt-1 text-sm text-slate-500">Current feedback distribution.</p>
-          </div>
-
-          <div className="space-y-5">
-            {[
-              ["Positive", 12.5, "bg-emerald-500"],
-              ["Neutral", 12.5, "bg-slate-400"],
-              ["Negative", 75, "bg-red-500"],
-            ].map(([label, value, color]) => (
-              <div key={label as string}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="font-medium text-slate-700">{label as string}</span>
-                  <span className="text-slate-500">{value as number}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${color as string}`}
-                    style={{ width: `${value as number}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-950">Routing status</h2>
-          <p className="mt-1 text-sm text-slate-500">Where feedback currently sits.</p>
-
-          <div className="mt-6 space-y-3">
-            {[
-              ["Ready to post", "1", "bg-emerald-50 text-emerald-700"],
-              ["Private queue", "4", "bg-slate-100 text-slate-700"],
-              ["Manager escalated", "2", "bg-red-50 text-red-700"],
-              ["Human review", "1", "bg-amber-50 text-amber-700"],
-            ].map(([label, value, classes]) => (
-              <div key={label} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-sm text-slate-600">{label}</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${classes}`}>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <StatCard label="Manager alerts" value={String(alerts.length)} detail="All alerts" />
+        <StatCard label="Pending alerts" value={String(pendingAlerts)} detail="Needs action" tone="danger" />
+        <StatCard label="High severity" value={String(alerts.filter((a) => a.alert_severity === "high").length)} detail="Alerts" tone="warning" />
+        <StatCard label="Repeat negative" value={String(alerts.filter((a) => a.alert_type === "repeat_negative").length)} detail="Escalations" tone="danger" />
+        <StatCard label="Resolved" value={String(alerts.filter((a) => a.alert_status === "resolved").length)} detail="Completed" tone="success" />
       </section>
 
       <section className="mt-6">
-        <AlertPreview alerts={alerts} />
+        <AlertPreview
+          alerts={alerts.slice(0, 5).map((alert) => ({
+            customer: alert.customer_name,
+            job: alert.job_reference,
+            type: alert.alert_type === "repeat_negative" ? "Repeat negative" : "High severity",
+            severity: alert.alert_severity,
+            status: alert.alert_status,
+          }))}
+        />
       </section>
     </div>
   );
