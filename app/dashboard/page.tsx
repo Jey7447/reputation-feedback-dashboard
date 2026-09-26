@@ -1,11 +1,11 @@
 import { AlertPreview } from "@/components/dashboard/alert-preview";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { getDashboardAlerts } from "@/lib/dashboard-data";
+import { getDashboardAlerts, type DashboardAlert } from "@/lib/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  let alerts = [];
+  let alerts: DashboardAlert[] = [];
   let dataError = "";
 
   try {
