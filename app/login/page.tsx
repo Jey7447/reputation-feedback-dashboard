@@ -1,0 +1,2 @@
+import { LoginForm } from "@/components/auth/login-form";
+export default function LoginPage(){return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-12"><div className="w-full max-w-md"><div className="mb-8 text-center"><p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Reputation Intelligence</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Manager sign in</h1><p className="mt-2 text-sm text-slate-500">Sign in to access feedback and manager alerts.</p></div><LoginForm/></div></main>}
