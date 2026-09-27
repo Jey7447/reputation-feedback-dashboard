@@ -51,6 +51,8 @@ export default async function DashboardPage() {
   const positiveCount = feedback.filter((item) => item.sentiment === "positive").length;
   const neutralCount = feedback.filter((item) => item.sentiment === "neutral").length;
   const pendingAlerts = alerts.filter((alert) => alert.alert_status === "pending").length;
+  const highSeverityFeedback = feedback.filter((item) => item.severity === "high").length;
+  const analyzedFeedback = feedback.filter((item) => item.sentiment !== null).length;
   const attentionCount = pendingAlerts + pendingResponses;
 
   return (
@@ -77,11 +79,21 @@ export default async function DashboardPage() {
       )}
 
       <section className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
-        <StatCard label="Feedback" value={String(feedback.length)} detail="Total records" />
-        <StatCard label="Average rating" value={averageRating} detail="Out of 5" />
-        <StatCard label="Negative feedback" value={String(negativeCount)} detail="Needs monitoring" tone="danger" />
-        <StatCard label="Pending alerts" value={String(pendingAlerts)} detail="Manager action" tone="warning" />
-        <StatCard label="Pending responses" value={String(pendingResponses)} detail="Human review" tone="success" />
+        <Link href="/dashboard/feedback" className="min-w-0">
+          <StatCard label="Feedback" value={String(feedback.length)} detail="Total records" />
+        </Link>
+        <Link href="/dashboard/feedback" className="min-w-0">
+          <StatCard label="Average rating" value={averageRating} detail="Out of 5" />
+        </Link>
+        <Link href="/dashboard/feedback" className="min-w-0">
+          <StatCard label="Negative feedback" value={String(negativeCount)} detail="Needs monitoring" tone="danger" />
+        </Link>
+        <Link href="/dashboard/alerts" className="min-w-0">
+          <StatCard label="Pending alerts" value={String(pendingAlerts)} detail="Manager action" tone="warning" />
+        </Link>
+        <Link href="/dashboard/responses" className="min-w-0">
+          <StatCard label="Pending responses" value={String(pendingResponses)} detail="Human review" tone="success" />
+        </Link>
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -117,8 +129,13 @@ export default async function DashboardPage() {
         </div>
 
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="font-semibold text-slate-950">Needs attention</h2>
-          <p className="mt-1 text-sm text-slate-500">Items requiring human review.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-slate-950">Needs attention</h2>
+              <p className="mt-1 text-sm text-slate-500">Items requiring human review.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{attentionCount}</span>
+          </div>
           <div className="mt-5 space-y-3">
             <Link href="/dashboard/alerts" className="flex items-center justify-between rounded-xl border border-slate-100 p-4 hover:bg-slate-50">
               <span><span className="block text-sm font-semibold text-slate-800">Manager alerts</span><span className="text-xs text-slate-500">Pending escalation work</span></span>
@@ -128,9 +145,15 @@ export default async function DashboardPage() {
               <span><span className="block text-sm font-semibold text-slate-800">Response drafts</span><span className="text-xs text-slate-500">Awaiting human review</span></span>
               <span className="text-lg font-bold text-amber-600">{pendingResponses}</span>
             </Link>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total action items</p>
-              <p className="mt-1 text-2xl font-bold text-slate-950">{attentionCount}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">High severity</p>
+                <p className="mt-1 text-2xl font-bold text-slate-950">{highSeverityFeedback}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">AI analyzed</p>
+                <p className="mt-1 text-2xl font-bold text-slate-950">{analyzedFeedback}/{feedback.length}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -146,7 +169,9 @@ export default async function DashboardPage() {
             <Link href="/dashboard/feedback" className="shrink-0 self-start text-sm font-semibold text-blue-600 hover:text-blue-700 sm:self-auto">View all</Link>
           </div>
           <div className="divide-y divide-slate-100">
-            {feedback.slice(0, 5).map((item) => (
+            {feedback.length === 0 ? (
+              <div className="p-5 text-sm text-slate-500">No feedback records are available yet.</div>
+            ) : feedback.slice(0, 5).map((item) => (
               <div key={item.id} className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5">
                 <div className="min-w-0 max-w-full">
                   <p className="break-words [overflow-wrap:anywhere] text-sm font-medium leading-6 text-slate-800">{item.comments || "No written comment."}</p>
