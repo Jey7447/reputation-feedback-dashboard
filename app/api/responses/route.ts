@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 
 export async function GET() {
   try {
-    const supabase = await createSupabaseServerClient();
+    const { supabase, response } = await requireAuthenticatedUser();
+    if (response) return response;
 
     const { data: responses, error } = await supabase
       .from("feedback_responses")
@@ -13,7 +14,6 @@ export async function GET() {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
     const feedbackIds = (responses ?? []).map((item) => item.feedback_id);
-
     const { data: feedbackRows, error: feedbackError } = feedbackIds.length
       ? await supabase
           .from("feedback")
@@ -21,12 +21,9 @@ export async function GET() {
           .in("id", feedbackIds)
       : { data: [], error: null };
 
-    if (feedbackError) {
-      return NextResponse.json({ error: feedbackError.message }, { status: 400 });
-    }
+    if (feedbackError) return NextResponse.json({ error: feedbackError.message }, { status: 400 });
 
     const feedbackById = new Map((feedbackRows ?? []).map((item) => [item.id, item]));
-
     const data = (responses ?? []).map((item) => ({
       ...item,
       feedback: feedbackById.get(item.feedback_id) ?? null,
