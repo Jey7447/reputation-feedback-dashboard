@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -38,12 +37,11 @@ export function Sidebar() {
       <aside className={`relative hidden min-h-screen shrink-0 flex-col border-r border-slate-200 bg-white p-4 transition-[width] duration-200 lg:flex ${collapsed ? "w-24" : "w-72"}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-start"} px-2 py-3`}>
           <Link href="/dashboard" aria-label="144 Auto Repair dashboard" className="block min-w-0">
-            <Image
+            <img
               src="/144-auto-repair-logo.webp"
               alt="144 Auto Repair"
               width={collapsed ? 64 : 190}
               height={collapsed ? 48 : 116}
-              priority
               className={collapsed ? "h-12 w-16 object-contain" : "h-auto w-[190px] max-w-full"}
             />
           </Link>
@@ -80,7 +78,7 @@ export function Sidebar() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4 sm:py-3 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/dashboard" className="min-w-0 flex-1">
-            <Image src="/144-auto-repair-logo.webp" alt="144 Auto Repair" width={150} height={92} priority className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
+            <img src="/144-auto-repair-logo.webp" alt="144 Auto Repair" width={150} height={92} className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
           </Link>
           <button
             type="button"
