@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 
 const allowedStatuses = new Set(["pending_review", "approved", "rejected", "sent"]);
 
@@ -17,16 +17,16 @@ export async function PATCH(
     if (!allowedStatuses.has(reviewStatus)) {
       return NextResponse.json({ error: "Invalid review status." }, { status: 400 });
     }
-
     if (reviewStatus === "approved" && !finalResponse) {
       return NextResponse.json({ error: "An approved response must contain a final response." }, { status: 400 });
     }
-
     if (reviewStatus === "rejected" && !reviewNotes) {
       return NextResponse.json({ error: "Please add a review note when rejecting a draft." }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
+    const { supabase, response } = await requireAuthenticatedUser();
+    if (response) return response;
+
     const { data, error } = await supabase
       .from("feedback_responses")
       .update({
@@ -40,10 +40,7 @@ export async function PATCH(
       .select("id, feedback_id, response_draft, review_status, final_response, review_notes, reviewed_at, updated_at")
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
