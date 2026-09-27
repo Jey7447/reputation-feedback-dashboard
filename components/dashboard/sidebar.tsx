@@ -38,7 +38,7 @@ export function Sidebar() {
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-start"} px-2 py-3`}>
           <Link href="/dashboard" aria-label="144 Auto Repair dashboard" className="block min-w-0">
             <img
-              src="https://raw.githubusercontent.com/Jey7447/reputation-feedback-dashboard/main/public/144-auto-repair-logo.webp"
+              src="/144-auto-repair-logo.svg"
               alt="144 Auto Repair"
               width={collapsed ? 64 : 190}
               height={collapsed ? 48 : 116}
@@ -78,7 +78,7 @@ export function Sidebar() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4 sm:py-3 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/dashboard" className="min-w-0 flex-1">
-            <img src="https://raw.githubusercontent.com/Jey7447/reputation-feedback-dashboard/main/public/144-auto-repair-logo.webp" alt="144 Auto Repair" width={150} height={92} className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
+            <img src="/144-auto-repair-logo.svg" alt="144 Auto Repair" width={150} height={92} className="h-12 w-auto max-w-full object-contain object-left sm:h-14" />
           </Link>
           <button
             type="button"
