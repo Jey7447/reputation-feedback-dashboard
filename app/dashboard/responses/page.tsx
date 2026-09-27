@@ -86,7 +86,11 @@ export default function ResponsesPage() {
       if (!response.ok) throw new Error(result.error || "Unable to update response.");
 
       setResponses((current) =>
-        current.map((entry) => entry.id === item.id ? result.data : entry),
+        current.map((entry) =>
+          entry.id === item.id
+            ? { ...result.data, feedback: entry.feedback }
+            : entry,
+        ),
       );
 
       setMessage(
