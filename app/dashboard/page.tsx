@@ -57,7 +57,8 @@ export default async function DashboardPage() {
     <div className="mx-auto w-full max-w-7xl min-w-0 p-3 sm:p-5 md:p-8">
       <header className="mb-6 flex min-w-0 flex-col justify-between gap-4 sm:mb-8 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Operations dashboard</p>
+          <p className="text-base font-bold uppercase tracking-wider text-slate-950 sm:text-lg">144 Auto Repair</p>
+          <p className="mt-2 text-sm font-semibold uppercase tracking-wider text-blue-600">Operations dashboard</p>
           <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Reputation overview</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
             Monitor customer sentiment, service quality, AI routing, response review, and manager escalations.
