@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" role="img" aria-labelledby="title desc">
+  <title id="title">144 Auto Repair</title>
+  <desc id="desc">144 Auto Repair logo with a car, gear and crossed wrench motif.</desc>
+  <defs>
+    <linearGradient id="red" x1="0" x2="1">
+      <stop offset="0" stop-color="#ef233c"/>
+      <stop offset="1" stop-color="#ff3b30"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="#102a43" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 104c24-34 66-52 114-52h101c36 0 69 15 94 42l34 37"/>
+    <path d="M72 138h318c22 0 39 17 39 39v4H54v-4c0-22 18-39 40-39Z"/>
+    <path d="M112 139 137 98h122l34 41"/>
+    <circle cx="118" cy="181" r="23" fill="#fff"/>
+    <circle cx="350" cy="181" r="23" fill="#fff"/>
+    <path d="M327 61c9-22 30-37 55-37 33 0 59 26 59 59 0 13-4 25-11 35"/>
+  </g>
+  <path d="M384 24c-6 13-5 29 2 41l-18 18-17-9-9 9 9 17-18 18c-13-7-28-8-41-2l-4 13 19 9 7 22 14 4 9-19c15-5 28-15 36-28l22-2 4-14-16-13c5-15 4-30-2-44Z" fill="#102a43"/>
+  <path d="M55 220h410" stroke="#102a43" stroke-width="10" stroke-linecap="round"/>
+  <path d="M72 220h38l12-14 15 28 16-20h43" fill="none" stroke="#102a43" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="260" y="151" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="91" font-weight="900" font-style="italic" fill="url(#red)" stroke="#fff" stroke-width="4" paint-order="stroke">144</text>
+  <text x="260" y="190" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800" letter-spacing="3" fill="#102a43">AUTO REPAIR</text>
+  <text x="260" y="260" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="5" fill="#102a43">DRIVE BETTER • GO FURTHER</text>
+</svg>
