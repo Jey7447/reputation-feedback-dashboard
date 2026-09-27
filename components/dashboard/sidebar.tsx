@@ -35,7 +35,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className={`hidden min-h-screen shrink-0 flex-col border-r border-slate-200 bg-white p-4 transition-[width] duration-200 lg:flex ${collapsed ? "w-24" : "w-72"}`}>
+      <aside className={`relative hidden min-h-screen shrink-0 flex-col border-r border-slate-200 bg-white p-4 transition-[width] duration-200 lg:flex ${collapsed ? "w-24" : "w-72"}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} px-2 py-3`}>
           <Link href="/dashboard" aria-label="144 Auto Repair dashboard">
             <Image
@@ -44,7 +44,7 @@ export function Sidebar() {
               width={collapsed ? 68 : 190}
               height={collapsed ? 40 : 105}
               priority
-              className={collapsed ? "h-12 w-12 object-cover object-left" : "h-auto w-[190px]"}
+              className={collapsed ? "h-12 w-12 object-contain" : "h-auto w-[190px]"}
             />
           </Link>
           <button
@@ -52,7 +52,7 @@ export function Sidebar() {
             onClick={toggleCollapsed}
             aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
             title={collapsed ? "Show sidebar" : "Hide sidebar"}
-            className={`absolute left-auto ml-0 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 ${collapsed ? "translate-x-[46px]" : "translate-x-[238px]"}`}
+            className="absolute right-2 top-5 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
           >
             {collapsed ? "»" : "«"}
           </button>
