@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "alertId is required." }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
+    const { supabase, response } = await requireAuthenticatedUser();
+    if (response) return response;
+
     const { data, error } = await supabase.rpc("resolve_manager_alert", {
       p_alert_id: alertId,
     });
