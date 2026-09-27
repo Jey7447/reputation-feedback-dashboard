@@ -11,11 +11,11 @@ export default async function FeedbackPage() {
     .order("submitted_at", { ascending: false });
 
   return (
-    <div className="mx-auto max-w-7xl p-5 sm:p-8">
-      <div className="mb-8">
-        <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Customer intelligence</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Feedback</h1>
-        <p className="mt-2 text-sm text-slate-500">Search and filter customer ratings, AI analysis, and routing status.</p>
+    <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden p-3 sm:p-5 md:p-8">
+      <div className="mb-6 sm:mb-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 sm:text-sm">Customer intelligence</p>
+        <h1 className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Feedback</h1>
+        <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-slate-500">Search and filter customer ratings, AI analysis, and routing status.</p>
       </div>
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Unable to load feedback: {error.message}</div>
