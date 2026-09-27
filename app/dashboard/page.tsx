@@ -54,16 +54,16 @@ export default async function DashboardPage() {
   const attentionCount = pendingAlerts + pendingResponses;
 
   return (
-    <div className="mx-auto max-w-7xl p-5 sm:p-8">
-      <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+    <div className="mx-auto w-full max-w-7xl min-w-0 p-3 sm:p-5 md:p-8">
+      <header className="mb-6 flex min-w-0 flex-col justify-between gap-4 sm:mb-8 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Operations dashboard</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Reputation overview</h1>
+          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Reputation overview</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
             Monitor customer sentiment, service quality, AI routing, response review, and manager escalations.
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+        <div className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm md:w-auto md:shrink-0">
           <span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />
           {dataError ? "Data error" : "Database connected"}
         </div>
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
         <StatCard label="Feedback" value={String(feedback.length)} detail="Total records" />
         <StatCard label="Average rating" value={averageRating} detail="Out of 5" />
         <StatCard label="Negative feedback" value={String(negativeCount)} detail="Needs monitoring" tone="danger" />
@@ -84,11 +84,11 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-semibold text-slate-950">Sentiment distribution</h2>
-              <p className="mt-1 text-sm text-slate-500">Current feedback across all available records.</p>
+              <p className="mt-1 break-words text-sm text-slate-500">Current feedback across all available records.</p>
             </div>
             <span className="text-sm font-semibold text-slate-500">{feedback.length} total</span>
           </div>
@@ -115,7 +115,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="font-semibold text-slate-950">Needs attention</h2>
           <p className="mt-1 text-sm text-slate-500">Items requiring human review.</p>
           <div className="mt-5 space-y-3">
@@ -136,19 +136,22 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 p-6">
-            <div><h2 className="font-semibold text-slate-950">Recent feedback</h2><p className="mt-1 text-sm text-slate-500">Latest customer submissions.</p></div>
-            <Link href="/dashboard/feedback" className="text-sm font-semibold text-blue-600 hover:text-blue-700">View all</Link>
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex min-w-0 flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="min-w-0">
+              <h2 className="font-semibold text-slate-950">Recent feedback</h2>
+              <p className="mt-1 break-words text-sm text-slate-500">Latest customer submissions.</p>
+            </div>
+            <Link href="/dashboard/feedback" className="shrink-0 self-start text-sm font-semibold text-blue-600 hover:text-blue-700 sm:self-auto">View all</Link>
           </div>
           <div className="divide-y divide-slate-100">
             {feedback.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-4 p-5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">{item.comments || "No written comment."}</p>
-                  <p className="mt-1 text-xs text-slate-400">{item.sentiment ?? "Unanalyzed"} · {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : "No date"}</p>
+              <div key={item.id} className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5">
+                <div className="min-w-0 max-w-full">
+                  <p className="break-words [overflow-wrap:anywhere] text-sm font-medium leading-6 text-slate-800">{item.comments || "No written comment."}</p>
+                  <p className="mt-1 break-words text-xs text-slate-400">{item.sentiment ?? "Unanalyzed"} · {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : "No date"}</p>
                 </div>
-                <span className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-700">{item.overall_rating}/5</span>
+                <span className="shrink-0 self-start rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-700 sm:self-auto">{item.overall_rating}/5</span>
               </div>
             ))}
           </div>
