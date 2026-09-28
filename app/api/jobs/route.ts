@@ -51,7 +51,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { supabase, response, user } = await requireAuthenticatedUser();
+    const { supabase, response } = await requireAuthenticatedUser();
     if (response) return response;
 
     const body = await request.json();
@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: visit, error: visitError } = await supabase
       .from("visits")
-      .select("id, job_reference, completed_at, customers!inner(full_name, email, phone), locations!inner(name)")
+      .select("id, job_reference, completed_at, customers!inner(full_name, email, phone)")
       .eq("id", visitId)
       .maybeSingle();
 
@@ -71,7 +71,6 @@ export async function PATCH(request: NextRequest) {
     if (!visit) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     const customer = Array.isArray(visit.customers) ? visit.customers[0] : visit.customers;
-    const location = Array.isArray(visit.locations) ? visit.locations[0] : visit.locations;
 
     if (!customer?.email && !customer?.phone) {
       return NextResponse.json(
@@ -87,7 +86,7 @@ export async function PATCH(request: NextRequest) {
           job_reference: visit.job_reference,
           completed_at: visit.completed_at,
           already_completed: true,
-          feedback_triggered: false,
+          feedback_request_created: false,
           message: "This job is already marked as completed.",
         },
       });
@@ -102,58 +101,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     const completed = Array.isArray(completion) ? completion[0] : completion;
-    const webhookUrl = process.env.N8N_JOB_COMPLETED_WEBHOOK_URL;
-    const webhookSecret = process.env.N8N_JOB_COMPLETED_WEBHOOK_SECRET;
 
-    if (!webhookUrl) {
+    const { data: feedbackRequest, error: feedbackRequestError } = await supabase
+      .from("feedback_requests")
+      .select("id, status, channel")
+      .eq("visit_id", completed.visit_id)
+      .maybeSingle();
+
+    if (feedbackRequestError) {
       return NextResponse.json(
-        {
-          error: "The job was marked completed, but the feedback automation is not configured yet.",
-          data: {
-            visit_id: completed.visit_id,
-            job_reference: completed.job_reference,
-            completed_at: completed.completed_at,
-            feedback_triggered: false,
-          },
-        },
-        { status: 503 },
-      );
-    }
-
-    const channel = customer.email ? "email" : "sms";
-
-    const webhookResponse = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(webhookSecret ? { "x-webhook-secret": webhookSecret } : {}),
-      },
-      body: JSON.stringify({
-        visit_id: completed.visit_id,
-        job_reference: completed.job_reference,
-        completed_at: completed.completed_at,
-        channel,
-        customer_name: customer.full_name,
-        customer_email: customer.email,
-        customer_phone: customer.phone,
-        location_name: location?.name ?? null,
-        triggered_by: user?.email ?? user?.id ?? "authenticated-user",
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!webhookResponse.ok) {
-      return NextResponse.json(
-        {
-          error: "The job was marked completed, but the feedback automation could not be triggered.",
-          data: {
-            visit_id: completed.visit_id,
-            job_reference: completed.job_reference,
-            completed_at: completed.completed_at,
-            feedback_triggered: false,
-          },
-        },
-        { status: 502 },
+        { error: "The job was completed, but the feedback request could not be confirmed." },
+        { status: 500 },
       );
     }
 
@@ -163,8 +121,12 @@ export async function PATCH(request: NextRequest) {
         job_reference: completed.job_reference,
         completed_at: completed.completed_at,
         already_completed: false,
-        feedback_triggered: true,
-        channel,
+        feedback_request_created: Boolean(feedbackRequest),
+        feedback_request_status: feedbackRequest?.status ?? null,
+        feedback_request_channel: feedbackRequest?.channel ?? null,
+        message: feedbackRequest
+          ? "Job completed and feedback request queued."
+          : "Job completed. No feedback request was created because no customer contact method was available.",
       },
     });
   } catch (error) {
