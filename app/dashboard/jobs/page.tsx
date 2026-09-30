@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Job = {
   id: string;
@@ -14,6 +14,18 @@ type Job = {
   feedback_sent_at: string | null;
 };
 
+type CustomerOption = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+};
+
+type LocationOption = {
+  id: string;
+  name: string;
+};
+
 const filters = ["all", "open", "completed"] as const;
 
 const feedbackStyles: Record<string, string> = {
@@ -25,9 +37,15 @@ const feedbackStyles: Record<string, string> = {
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [jobReference, setJobReference] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -40,6 +58,11 @@ export default function JobsPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to load jobs.");
       setJobs(result.data ?? []);
+      setCustomers(result.customers ?? []);
+      setLocations(result.locations ?? []);
+      if (!locationId && result.locations?.length === 1) {
+        setLocationId(result.locations[0].id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load jobs.");
     } finally {
@@ -50,6 +73,46 @@ export default function JobsPage() {
   useEffect(() => {
     loadJobs();
   }, []);
+
+  async function createJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!customerId || !locationId || !jobReference.trim()) {
+      setError("Customer, location, and job reference are required.");
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId,
+          locationId,
+          jobReference: jobReference.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to create job.");
+      }
+
+      setMessage(`Job ${jobReference.trim()} created successfully.`);
+      setJobReference("");
+      setCustomerId("");
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create job.");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   async function markCompleted(job: Job) {
     const confirmed = window.confirm(
@@ -106,7 +169,7 @@ export default function JobsPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 sm:text-sm">Operations</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Jobs</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Manage service visits and mark completed jobs to trigger customer feedback requests.
+            Create service visits and mark completed jobs to trigger customer feedback requests.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -120,6 +183,77 @@ export default function JobsPage() {
           </div>
         </div>
       </div>
+
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-bold text-slate-950">Create new job</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Select an existing customer and service location, then assign a unique job reference.
+          </p>
+        </div>
+
+        <form onSubmit={createJob} className="grid gap-4 md:grid-cols-3">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-slate-700">Customer</span>
+            <select
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              required
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-950 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+            >
+              <option value="">Select customer</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.full_name}{customer.email ? ` — ${customer.email}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-slate-700">Location</span>
+            <select
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+              required
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-950 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+            >
+              <option value="">Select location</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-slate-700">Job reference</span>
+            <input
+              value={jobReference}
+              onChange={(event) => setJobReference(event.target.value)}
+              maxLength={100}
+              required
+              placeholder="e.g. JOB-2026-001"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+            />
+          </label>
+
+          <div className="md:col-span-3">
+            <button
+              type="submit"
+              disabled={creating || customers.length === 0 || locations.length === 0}
+              className="w-full rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+            >
+              {creating ? "Creating..." : "Create job"}
+            </button>
+            {customers.length === 0 && !loading && (
+              <p className="mt-2 text-xs text-amber-700">Register a customer before creating a job.</p>
+            )}
+            {locations.length === 0 && !loading && (
+              <p className="mt-2 text-xs text-amber-700">No active service locations are available.</p>
+            )}
+          </div>
+        </form>
+      </section>
 
       <div className="mb-5 flex max-w-full flex-wrap gap-2">
         {filters.map((item) => (
