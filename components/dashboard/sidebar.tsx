@@ -8,6 +8,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 const links = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/jobs", label: "Jobs" },
+  { href: "/dashboard/customers", label: "Customers" },
   { href: "/dashboard/feedback", label: "Feedback" },
   { href: "/dashboard/alerts", label: "Manager Alerts" },
   { href: "/dashboard/responses", label: "Response Queue" },
@@ -66,7 +67,7 @@ export function Sidebar() {
               className={`flex items-center rounded-lg px-3 py-3 text-sm font-medium transition ${collapsed ? "justify-center" : "gap-3"} ${isActive(link.href) ? "bg-slate-100 text-slate-950" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
             >
               <span className="text-base">
-                {link.label === "Overview" ? "⌂" : link.label === "Jobs" ? "▣" : link.label === "Feedback" ? "▤" : link.label === "Manager Alerts" ? "!" : "✉"}
+                {link.label === "Overview" ? "⌂" : link.label === "Jobs" ? "▣" : link.label === "Customers" ? "♙" : link.label === "Feedback" ? "▤" : link.label === "Manager Alerts" ? "!" : "✉"}
               </span>
               {!collapsed && <span className="min-w-0 truncate">{link.label}</span>}
             </Link>
