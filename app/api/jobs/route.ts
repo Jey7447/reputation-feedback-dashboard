@@ -80,23 +80,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const customerId = typeof body.customerId === "string" ? body.customerId.trim() : "";
     const locationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
-    const jobReference = typeof body.jobReference === "string" ? body.jobReference.trim() : "";
 
-    if (!customerId || !locationId || !jobReference) {
+    if (!customerId || !locationId) {
       return NextResponse.json(
-        { error: "Customer, location, and job reference are required." },
+        { error: "Customer and location are required." },
         { status: 400 },
       );
-    }
-
-    if (jobReference.length > 100) {
-      return NextResponse.json({ error: "Job reference is too long." }, { status: 400 });
     }
 
     const { data, error } = await supabase.rpc("create_visit", {
       p_customer_id: customerId,
       p_location_id: locationId,
-      p_job_reference: jobReference,
     });
 
     if (error) {
