@@ -25,13 +25,23 @@ export async function GET() {
     const { supabase, response } = await requireAuthenticatedUser();
     if (response) return response;
 
-    const { data, error } = await supabase
-      .from("visits")
-      .select("id, job_reference, completed_at, customers!inner(full_name, email, phone), locations!inner(name), feedback_requests(status, sent_at)")
-      .order("completed_at", { ascending: false, nullsFirst: true })
-      .order("created_at", { ascending: false });
+    const [
+      { data, error },
+      { data: customers, error: customersError },
+      { data: locations, error: locationsError },
+    ] = await Promise.all([
+      supabase
+        .from("visits")
+        .select("id, job_reference, completed_at, customers!inner(full_name, email, phone), locations!inner(name), feedback_requests(status, sent_at)")
+        .order("completed_at", { ascending: false, nullsFirst: true })
+        .order("created_at", { ascending: false }),
+      supabase.from("customers").select("id, full_name, email, phone").order("full_name", { ascending: true }),
+      supabase.from("locations").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+    ]);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (customersError) return NextResponse.json({ error: customersError.message }, { status: 400 });
+    if (locationsError) return NextResponse.json({ error: locationsError.message }, { status: 400 });
 
     const jobs = ((data ?? []) as unknown as JobRow[]).map((job) => {
       const feedbackRequest = getFeedbackRequest(job.feedback_requests);
@@ -49,10 +59,62 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ data: jobs });
+    return NextResponse.json({
+      data: jobs,
+      customers: customers ?? [],
+      locations: locations ?? [],
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to load jobs." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { supabase, response } = await requireAuthenticatedUser();
+    if (response) return response;
+
+    const body = await request.json();
+    const customerId = typeof body.customerId === "string" ? body.customerId.trim() : "";
+    const locationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
+    const jobReference = typeof body.jobReference === "string" ? body.jobReference.trim() : "";
+
+    if (!customerId || !locationId || !jobReference) {
+      return NextResponse.json(
+        { error: "Customer, location, and job reference are required." },
+        { status: 400 },
+      );
+    }
+
+    if (jobReference.length > 100) {
+      return NextResponse.json({ error: "Job reference is too long." }, { status: 400 });
+    }
+
+    const { data, error } = await supabase.rpc("create_visit", {
+      p_customer_id: customerId,
+      p_location_id: locationId,
+      p_job_reference: jobReference,
+    });
+
+    if (error) {
+      const message = error.message.toLowerCase().includes("duplicate")
+        ? "A job with that reference already exists."
+        : error.message;
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const visit = Array.isArray(data) ? data[0] : data;
+
+    return NextResponse.json(
+      { data: visit, message: "Job created successfully." },
+      { status: 201 },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to create job." },
       { status: 500 },
     );
   }
