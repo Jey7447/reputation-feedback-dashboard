@@ -45,7 +45,6 @@ export default function JobsPage() {
   const [busyId, setBusyId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [locationId, setLocationId] = useState("");
-  const [jobReference, setJobReference] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -79,8 +78,8 @@ export default function JobsPage() {
     setError("");
     setMessage("");
 
-    if (!customerId || !locationId || !jobReference.trim()) {
-      setError("Customer, location, and job reference are required.");
+    if (!customerId || !locationId) {
+      setError("Customer and location are required.");
       return;
     }
 
@@ -93,7 +92,6 @@ export default function JobsPage() {
         body: JSON.stringify({
           customerId,
           locationId,
-          jobReference: jobReference.trim(),
         }),
       });
 
@@ -103,8 +101,7 @@ export default function JobsPage() {
         throw new Error(result.error || "Unable to create job.");
       }
 
-      setMessage(`Job ${jobReference.trim()} created successfully.`);
-      setJobReference("");
+      setMessage(`Job ${result.data?.job_reference ?? "created"} created successfully.`);
       setCustomerId("");
       await loadJobs();
     } catch (err) {
@@ -225,19 +222,13 @@ export default function JobsPage() {
             </select>
           </label>
 
-          <label className="block">
+          <div className="block">
             <span className="mb-1.5 block text-sm font-semibold text-slate-700">Job reference</span>
-            <input
-              value={jobReference}
-              onChange={(event) => setJobReference(event.target.value)}
-              maxLength={100}
-              required
-              placeholder="e.g. JOB-2026-001"
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-            />
-          </label>
-
-          <div className="md:col-span-3">
+            <div className="flex min-h-[48px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-semibold text-slate-500">
+              Automatically generated
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">Assigned automatically using the existing JOB-#### pattern.</p>
+          </div>         <div className="md:col-span-3">
             <button
               type="submit"
               disabled={creating || customers.length === 0 || locations.length === 0}
