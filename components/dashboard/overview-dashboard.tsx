@@ -34,6 +34,7 @@ type AlertRow = {
 };
 
 type Props = {
+  locations: { id: string; name: string }[];
   feedback: FeedbackRow[];
   responses: ResponseRow[];
   alerts: AlertRow[];
@@ -57,10 +58,10 @@ const routingTone: Record<string, string> = {
   pending_analysis: "bg-slate-100 text-slate-600",
 };
 
-export function OverviewDashboard({ feedback, responses, alerts }: Props) {
+export function OverviewDashboard({ locations: branchLocations, feedback, responses, alerts }: Props) {
   const locations = useMemo(
-    () => ["All locations", ...Array.from(new Set(feedback.map((item) => item.location_name))).filter(Boolean).sort()],
-    [feedback],
+    () => ["All locations", ...branchLocations.map((item) => item.name).filter(Boolean)],
+    [branchLocations],
   );
   const [location, setLocation] = useState("All locations");
 
@@ -99,8 +100,7 @@ export function OverviewDashboard({ feedback, responses, alerts }: Props) {
   const maxSentiment = Math.max(1, positive, neutral, negative);
   const maxRouting = Math.max(1, ready, privateQueue, escalated);
   const branchRows = useMemo(() => {
-    const names = Array.from(new Set(feedback.map((item) => item.location_name))).filter(Boolean).sort();
-    return names.map((name) => {
+    return branchLocations.map(({ name }) => {
       const rows = feedback.filter((item) => item.location_name === name);
       const branchPositive = rows.filter((item) => item.sentiment === "positive").length;
       const branchNegative = rows.filter((item) => item.sentiment === "negative").length;
@@ -119,7 +119,7 @@ export function OverviewDashboard({ feedback, responses, alerts }: Props) {
         avgScore: scoreRows.length ? Math.round(scoreRows.reduce((sum, item) => sum + (item.sentiment_score ?? 0), 0) / scoreRows.length) : null,
       };
     });
-  }, [feedback]);
+  }, [feedback, branchLocations]);
 
   return (
     <div className="space-y-6">
