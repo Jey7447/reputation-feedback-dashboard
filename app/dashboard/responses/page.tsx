@@ -156,6 +156,39 @@ export default function ResponsesPage() {
         </p>
       </div>
 
+      <section className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Approval → delivery</p>
+              <p className="mt-1 text-sm text-slate-600">Every response follows the same human-controlled lifecycle.</p>
+            </div>
+            <p className="text-xs font-semibold text-slate-400">No automatic delivery before approval</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          {[
+            ["01", "Awaiting approval", "Review & edit", "pending_review"],
+            ["02", "Approved", "Human approval complete", "approved"],
+            ["03", "Sent", "Delivered to customer", "sent"],
+            ["04", "Rejected", "Needs revision", "rejected"],
+          ].map(([step, title, subtitle, key]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key as (typeof statusFilters)[number])}
+              className="group flex items-center gap-3 px-4 py-4 text-left transition hover:bg-slate-50 sm:px-5"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-500 group-hover:bg-slate-950 group-hover:text-white">{step}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-slate-900">{title} <span className="font-semibold text-slate-400">({counts[key as keyof typeof counts]})</span></span>
+                <span className="mt-0.5 block text-xs text-slate-500">{subtitle}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {statusFilters.map((item) => (
           <button
@@ -283,6 +316,10 @@ export default function ResponsesPage() {
                           className="mt-2 min-h-20 w-full min-w-0 resize-y rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                         />
                       </label>
+                      <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Before approval</p>
+                        <p className="mt-1 text-xs leading-5 text-amber-800">Edit the draft if needed, then approve only when the final wording is ready. Approval is the gate that starts delivery.</p>
+                      </div>
                       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <button
                           disabled={busyId === item.id}
@@ -296,7 +333,7 @@ export default function ResponsesPage() {
                           onClick={() => updateResponse(item, "approved")}
                           className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                         >
-                          {busyId === item.id ? "Saving..." : "Approve"}
+                          {busyId === item.id ? "Saving..." : "Approve & queue delivery"}
                         </button>
                       </div>
                     </>
@@ -306,7 +343,12 @@ export default function ResponsesPage() {
                     <div className={`mt-4 min-w-0 rounded-xl border p-4 ${item.review_status === "sent" ? "border-emerald-100 bg-emerald-50" : "border-blue-100 bg-blue-50"}`}>
                       <p className={`text-xs font-semibold uppercase tracking-wider ${item.review_status === "sent" ? "text-emerald-700" : "text-blue-700"}`}>Approved final response</p>
                       <p className="mt-2 break-words text-sm leading-6 text-slate-800">{item.final_response}</p>
-                      <p className={`mt-2 text-xs font-semibold ${item.review_status === "sent" ? "text-emerald-700" : "text-blue-700"}`}>{item.review_status === "sent" ? "Delivered to customer" : "Approved — awaiting delivery"}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.review_status === "sent" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}>
+                          {item.review_status === "sent" ? "Delivered to customer" : "Approved — awaiting delivery"}
+                        </span>
+                        {item.reviewed_at && <span className="text-xs text-slate-400">Reviewed {new Date(item.reviewed_at).toLocaleString()}</span>}
+                      </div>
                     </div>
                   )}
 
