@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { LocationIcon } from "@/components/dashboard/location-icon";
 
 type ResponseItem = {
   id: string;
@@ -24,20 +25,26 @@ type ResponseItem = {
     confidence_score: number | null;
     routing_status: string;
     submitted_at: string | null;
+    job_reference: string | null;
+    location_name: string;
   } | null;
 };
 
-const statusFilters = ["all", "pending_review", "approved", "rejected"] as const;
+const statusFilters = ["all", "pending_review", "approved", "sent", "rejected"] as const;
 
 const statusStyles: Record<string, string> = {
   pending_review: "bg-amber-50 text-amber-700",
   approved: "bg-emerald-50 text-emerald-700",
   rejected: "bg-red-50 text-red-700",
+  sent: "bg-emerald-50 text-emerald-700",
 };
 
 export default function ResponsesPage() {
   const [responses, setResponses] = useState<ResponseItem[]>([]);
   const [filter, setFilter] = useState<(typeof statusFilters)[number]>("all");
+  const [location, setLocation] = useState("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("newest");
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -95,7 +102,7 @@ export default function ResponsesPage() {
 
       setMessage(
         reviewStatus === "approved"
-          ? "Response approved. It remains under human control and is not sent automatically."
+          ? "Response approved. Human approval is complete and the approved response is now queued for delivery."
           : "Response rejected and marked for revision.",
       );
     } catch (err) {
@@ -105,9 +112,29 @@ export default function ResponsesPage() {
     }
   }
 
-  const visible = filter === "all"
-    ? responses
-    : responses.filter((item) => item.review_status === filter);
+  const locations = useMemo(() => Array.from(new Set(responses.map((item) => item.feedback?.location_name).filter(Boolean) as string[])).sort(), [responses]);
+
+  const counts = useMemo(() => ({
+    all: responses.length,
+    pending_review: responses.filter((item) => item.review_status === "pending_review").length,
+    approved: responses.filter((item) => item.review_status === "approved").length,
+    sent: responses.filter((item) => item.review_status === "sent").length,
+    rejected: responses.filter((item) => item.review_status === "rejected").length,
+  }), [responses]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = responses.filter((item) => {
+      const f = item.feedback;
+      const matchesQuery = !q || [item.feedback_id, f?.comments, f?.feedback_category, f?.job_reference, f?.location_name].some((value) => value?.toLowerCase().includes(q));
+      return matchesQuery && (filter === "all" || item.review_status === filter) && (location === "all" || f?.location_name === location);
+    });
+    return [...rows].sort((a, b) => {
+      if (sort === "rating_high") return (b.feedback?.overall_rating ?? 0) - (a.feedback?.overall_rating ?? 0);
+      if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [responses, filter, location, query, sort]);
 
   return (
     <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden p-3 sm:p-5 md:p-8">
@@ -115,21 +142,36 @@ export default function ResponsesPage() {
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 sm:text-sm">Human review</p>
         <h1 className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Response Queue</h1>
         <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-slate-500">
-          Review, edit, approve, or reject AI-generated response drafts. Nothing is automatically sent to a customer.
+          Review, edit, approve, or reject AI-generated drafts. Human approval is required before delivery; approved responses move through the delivery workflow.
         </p>
       </div>
 
-      <div className="mb-5 flex max-w-full flex-wrap gap-2">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {statusFilters.map((item) => (
           <button
             key={item}
             onClick={() => setFilter(item)}
             className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold capitalize sm:px-4 ${filter === item ? "bg-slate-950 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
           >
-            {item.replaceAll("_", " ")}
+            {item === "all" ? "All" : item === "pending_review" ? "Awaiting approval" : item.replaceAll("_", " ")} <span className="ml-1 opacity-60">({counts[item]})</span>
           </button>
         ))}
       </div>
+
+      <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search branch, job, comment, or feedback ID..." className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          <select value={location} onChange={(e) => setLocation(e.target.value)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500">
+            <option value="all">All branches</option>
+            {locations.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="rating_high">Highest rating</option>
+          </select>
+        </div>
+      </section>
 
       {error && <div className="mb-4 max-w-full break-words rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">{error}</div>}
       {message && <div className="mb-4 max-w-full break-words rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">{message}</div>}
@@ -153,6 +195,7 @@ export default function ResponsesPage() {
                         Feedback {item.feedback_id.slice(0, 8)}…
                       </p>
                       <h2 className="mt-1 break-words font-semibold text-slate-950">Customer response draft</h2>
+                      {feedback && <div className="mt-3 flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><LocationIcon location={feedback.location_name} className="h-5 w-5" /></span><div><p className="text-xs font-bold text-slate-800">{feedback.location_name}</p><p className="text-[11px] text-slate-400">{feedback.job_reference ?? "Job reference unavailable"}</p></div></div>}
                       <p className="mt-1 text-xs text-slate-400">
                         Created {new Date(item.created_at).toLocaleString()}
                       </p>
@@ -238,10 +281,11 @@ export default function ResponsesPage() {
                     </>
                   )}
 
-                  {item.final_response && item.review_status === "approved" && (
-                    <div className="mt-4 min-w-0 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Approved final response</p>
-                      <p className="mt-2 break-words text-sm leading-6 text-emerald-950">{item.final_response}</p>
+                  {item.final_response && (
+                    <div className={`mt-4 min-w-0 rounded-xl border p-4 ${item.review_status === "sent" ? "border-emerald-100 bg-emerald-50" : "border-blue-100 bg-blue-50"}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wider ${item.review_status === "sent" ? "text-emerald-700" : "text-blue-700"}`}>Approved final response</p>
+                      <p className="mt-2 break-words text-sm leading-6 text-slate-800">{item.final_response}</p>
+                      <p className={`mt-2 text-xs font-semibold ${item.review_status === "sent" ? "text-emerald-700" : "text-blue-700"}`}>{item.review_status === "sent" ? "Delivered to customer" : "Approved — awaiting delivery"}</p>
                     </div>
                   )}
 
