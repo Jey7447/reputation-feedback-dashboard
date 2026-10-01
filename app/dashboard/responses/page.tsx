@@ -41,6 +41,7 @@ const statusStyles: Record<string, string> = {
 
 export default function ResponsesPage() {
   const [responses, setResponses] = useState<ResponseItem[]>([]);
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof statusFilters)[number]>("all");
   const [location, setLocation] = useState("all");
   const [query, setQuery] = useState("");
@@ -61,6 +62,7 @@ export default function ResponsesPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to load response drafts.");
       setResponses(result.data ?? []);
+      setAvailableLocations(result.locations ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load response drafts.");
     } finally {
@@ -113,7 +115,7 @@ export default function ResponsesPage() {
     }
   }
 
-  const locations = useMemo(() => Array.from(new Set(responses.map((item) => item.feedback?.location_name).filter(Boolean) as string[])).sort(), [responses]);
+  const locations = useMemo(() => availableLocations.filter(Boolean).sort(), [availableLocations]);
 
   const sentimentCounts = useMemo(() => ({
     all: responses.length,
