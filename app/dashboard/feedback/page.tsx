@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FeedbackPage() {
   const supabase = await createSupabaseServerClient();
+  const { data: locations } = await supabase.from("locations").select("id, name").eq("is_active", true).order("name");
   const { data, error } = await supabase
     .from("feedback")
     .select(
@@ -43,7 +44,7 @@ export default async function FeedbackPage() {
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Unable to load feedback: {error.message}</div>
       ) : (
-        <FeedbackList feedback={feedback} />
+        <FeedbackList feedback={feedback} locations={(locations ?? []).map((item) => item.name)} />
       )}
     </div>
   );
