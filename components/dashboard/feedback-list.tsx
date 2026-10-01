@@ -109,6 +109,13 @@ export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
     });
   }, [feedback, query, location, sentiment, severity, routing, responseStatus, sort]);
 
+  const sentimentCounts = useMemo(() => ({
+    all: feedback.length,
+    positive: feedback.filter((item) => item.sentiment === "positive").length,
+    neutral: feedback.filter((item) => item.sentiment === "neutral").length,
+    negative: feedback.filter((item) => item.sentiment === "negative").length,
+  }), [feedback]);
+
   const resetFilters = () => {
     setQuery("");
     setLocation("all");
@@ -122,6 +129,13 @@ export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
   return (
     <>
       <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(["all", "positive", "neutral", "negative"] as const).map((item) => (
+            <button key={item} type="button" onClick={() => setSentiment(item)} className={`rounded-xl px-3 py-2.5 text-sm font-bold capitalize transition ${sentiment === item ? "bg-slate-950 text-white" : item === "positive" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : item === "negative" ? "bg-red-50 text-red-700 hover:bg-red-100" : item === "neutral" ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+              {item === "all" ? "All feedback" : item} <span className="ml-1 opacity-70">({sentimentCounts[item]})</span>
+            </button>
+          ))}
+        </div>
         <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,180px))]">
           <input
             value={query}
