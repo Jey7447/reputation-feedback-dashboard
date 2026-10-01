@@ -10,20 +10,63 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  margin: 0;
+html {
   min-height: 100%;
+  scroll-behavior: smooth;
+  background: #f6f7f9;
 }
 
 body {
+  margin: 0;
+  min-height: 100%;
   background: #f6f7f9;
   color: #111827;
   font-family: Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #c9972b;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #f3dfaa;
+  color: #111827;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef0f3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd0d8;
+  border-radius: 999px;
+  border: 2px solid #eef0f3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
