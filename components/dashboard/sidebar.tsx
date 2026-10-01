@@ -9,6 +9,7 @@ const links = [
   { href: "/dashboard", label: "Overview", icon: "home" },
   { href: "/dashboard/customers", label: "Customers & Jobs", icon: "customers" },
   { href: "/dashboard/feedback", label: "Feedback", icon: "feedback" },
+  { href: "/dashboard/visualize-data", label: "Visualize Data", icon: "visualize" },
   { href: "/dashboard/alerts", label: "Manager Alerts", icon: "alerts" },
   { href: "/dashboard/responses", label: "Response Queue", icon: "responses" },
 ] as const;
@@ -19,6 +20,7 @@ function NavIcon({ name }: { name: (typeof links)[number]["icon"] }) {
   if (name === "customers") return <svg {...common}><circle cx="9" cy="8" r="3" /><path d="M3.5 19c.7-3.1 2.5-4.5 5.5-4.5s4.8 1.4 5.5 4.5" /><path d="M16 5.5a3 3 0 0 1 0 5.8" /><path d="M18 14.8c1.6.6 2.5 1.9 3 4.2" /></svg>;
   if (name === "feedback") return <svg {...common}><path d="M5 4h14v13H8l-3 3V4Z" /><path d="M8 8h8M8 12h5" /></svg>;
   if (name === "alerts") return <svg {...common}><path d="M12 3 21 20H3L12 3Z" /><path d="M12 9v5M12 17h.01" /></svg>;
+  if (name === "visualize") return <svg {...common}><path d="M5 19V9M12 19V5M19 19v-8" /><path d="M3 19h18" /></svg>;
   return <svg {...common}><path d="M4 5h16v14H4z" /><path d="m4 7 8 6 8-6" /></svg>;
 }
 
