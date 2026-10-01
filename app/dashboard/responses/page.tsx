@@ -45,6 +45,7 @@ export default function ResponsesPage() {
   const [location, setLocation] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("newest");
+  const [sentiment, setSentiment] = useState("all");
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -114,6 +115,13 @@ export default function ResponsesPage() {
 
   const locations = useMemo(() => Array.from(new Set(responses.map((item) => item.feedback?.location_name).filter(Boolean) as string[])).sort(), [responses]);
 
+  const sentimentCounts = useMemo(() => ({
+    all: responses.length,
+    positive: responses.filter((item) => item.feedback?.sentiment === "positive").length,
+    neutral: responses.filter((item) => item.feedback?.sentiment === "neutral").length,
+    negative: responses.filter((item) => item.feedback?.sentiment === "negative").length,
+  }), [responses]);
+
   const counts = useMemo(() => ({
     all: responses.length,
     pending_review: responses.filter((item) => item.review_status === "pending_review").length,
@@ -127,14 +135,14 @@ export default function ResponsesPage() {
     const rows = responses.filter((item) => {
       const f = item.feedback;
       const matchesQuery = !q || [item.feedback_id, f?.comments, f?.feedback_category, f?.job_reference, f?.location_name].some((value) => value?.toLowerCase().includes(q));
-      return matchesQuery && (filter === "all" || item.review_status === filter) && (location === "all" || f?.location_name === location);
+      return matchesQuery && (filter === "all" || item.review_status === filter) && (location === "all" || f?.location_name === location) && (sentiment === "all" || f?.sentiment === sentiment);
     });
     return [...rows].sort((a, b) => {
       if (sort === "rating_high") return (b.feedback?.overall_rating ?? 0) - (a.feedback?.overall_rating ?? 0);
       if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [responses, filter, location, query, sort]);
+  }, [responses, filter, location, query, sort, sentiment]);
 
   return (
     <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden p-3 sm:p-5 md:p-8">
@@ -157,6 +165,17 @@ export default function ResponsesPage() {
           </button>
         ))}
       </div>
+
+      <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Feedback sentiment</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(["all", "positive", "neutral", "negative"] as const).map((item) => (
+            <button key={item} type="button" onClick={() => setSentiment(item)} className={`rounded-xl px-3 py-2.5 text-sm font-bold capitalize transition ${sentiment === item ? "bg-slate-950 text-white" : item === "positive" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : item === "negative" ? "bg-red-50 text-red-700 hover:bg-red-100" : item === "neutral" ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+              {item === "all" ? "All feedback" : item} <span className="ml-1 opacity-70">({sentimentCounts[item]})</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
