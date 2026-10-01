@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { LocationIcon } from "@/components/dashboard/location-icon";
 
 const links = [
   { href: "/dashboard", label: "Overview" },
