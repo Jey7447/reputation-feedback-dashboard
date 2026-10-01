@@ -87,13 +87,8 @@ export function Sidebar() {
         <div className={`mt-auto border-t border-slate-100 pt-4 ${collapsed ? "flex justify-center" : ""}`}>
           {!collapsed && (
             <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <LocationIcon location="Abuja Central" className="h-5 w-5 text-slate-700" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current branch</p>
-                  <p className="truncate text-xs font-semibold text-slate-800">Abuja Central</p>
-                </div>
-              </div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Operations</p>
+              <p className="mt-1 text-xs font-semibold text-slate-700">Multi-location reputation management</p>
             </div>
           )}
           <SignOutButton />
