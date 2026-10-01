@@ -25,6 +25,14 @@ export async function GET() {
 
     if (feedbackError) return NextResponse.json({ error: feedbackError.message }, { status: 400 });
 
+    const { data: locations, error: locationsError } = await supabase
+      .from("locations")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+
+    if (locationsError) return NextResponse.json({ error: locationsError.message }, { status: 400 });
+
     const feedbackById = new Map(
       (feedbackRows ?? []).map((item: any) => [
         item.id,
@@ -52,7 +60,7 @@ export async function GET() {
       feedback: feedbackById.get(item.feedback_id) ?? null,
     }));
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, locations: (locations ?? []).map((item) => item.name) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to load responses." },
