@@ -147,13 +147,18 @@ export default function CustomersPage() {
         throw new Error(customerResult.error || "Unable to register customer.");
       }
 
+      if (customerResult.existing) {
+        setError(
+          "A customer with this email address or phone number already exists. Use the "Create job" button under Customer History to add another service visit for that customer.",
+        );
+        return;
+      }
+
       const customer = customerResult.data as Customer;
       const jobResult = await createJob(customer.id, locationId);
 
       setMessage(
-        customerResult.existing
-          ? `Existing customer found. Job ${jobResult.data?.job_reference ?? "created"} was created successfully.`
-          : `Customer registered and job ${jobResult.data?.job_reference ?? "created"} was created successfully.`,
+        `Customer registered and job ${jobResult.data?.job_reference ?? "created"} was created successfully.`,
       );
 
       setFullName("");
@@ -298,7 +303,7 @@ export default function CustomersPage() {
           </p>
         </div>
 
-        <form onSubmit={registerCustomerAndJob} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <form onSubmit={registerCustomerAndJob} autoComplete="off" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-slate-700">Full name</span>
             <input
@@ -306,6 +311,7 @@ export default function CustomersPage() {
               onChange={(event) => setFullName(event.target.value)}
               maxLength={120}
               required
+              autoComplete="off"
               placeholder="e.g. John Doe"
               className="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
             />
@@ -318,6 +324,7 @@ export default function CustomersPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               maxLength={254}
+              autoComplete="off"
               placeholder="customer@example.com"
               className="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
             />
@@ -330,6 +337,7 @@ export default function CustomersPage() {
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               maxLength={40}
+              autoComplete="off"
               placeholder="+234 800 000 0000"
               className="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
             />
