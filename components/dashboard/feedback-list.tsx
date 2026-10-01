@@ -68,7 +68,7 @@ const responseLabels: Record<string, string> = {
   not_created: "No response",
 };
 
-export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
+export function FeedbackList({ feedback, locations: availableLocations }: { feedback: Feedback[]; locations: string[] }) {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("all");
   const [sentiment, setSentiment] = useState("all");
@@ -78,7 +78,7 @@ export function FeedbackList({ feedback }: { feedback: Feedback[] }) {
   const [sort, setSort] = useState("newest");
 
   const locations = useMemo(
-    () => Array.from(new Set(feedback.map((item) => item.location_name))).filter(Boolean).sort(),
+    () => Array.from(new Set(availableLocations)).filter(Boolean).sort(),
     [feedback],
   );
 
