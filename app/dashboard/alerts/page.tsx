@@ -36,6 +36,7 @@ const statusStyles: Record<string, string> = {
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
   const [location, setLocation] = useState("all");
   const [type, setType] = useState("all");
@@ -53,6 +54,7 @@ export default function AlertsPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to load alerts.");
       setAlerts(result.data ?? []);
+      setAvailableLocations(result.locations ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load alerts.");
     } finally {
