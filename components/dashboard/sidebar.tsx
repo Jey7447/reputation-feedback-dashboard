@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { LocationIcon } from "@/components/dashboard/location-icon";
 
 const links = [
   { href: "/dashboard", label: "Overview" },
@@ -38,7 +39,7 @@ export function Sidebar() {
     <>
       <aside className={`relative hidden min-h-screen shrink-0 flex-col border-r border-slate-200 bg-white p-4 transition-[width] duration-200 lg:flex ${collapsed ? "w-24" : "w-72"}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-start"} px-2 py-3`}>
-          <Link href="/dashboard" aria-label="144 Auto Repair dashboard" className="block min-w-0">
+          <Link href="/dashboard" aria-label="144 Auto Repair — Reputation Intelligence Center" className="block min-w-0">
             <img
               src="/144-auto-repair-logo.svg"
               alt="144 Auto Repair"
@@ -58,7 +59,16 @@ export function Sidebar() {
           </button>
         </div>
 
-        <nav className="mt-5 space-y-1">
+        <div className={`mb-2 ${collapsed ? "text-center" : "px-2"}`}>
+          {!collapsed && (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Reputation Intelligence</p>
+              <p className="mt-1 text-sm font-black tracking-tight text-slate-950">144 AUTO REPAIR</p>
+            </>
+          )}
+        </div>
+
+        <nav className="mt-3 space-y-1">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -75,6 +85,17 @@ export function Sidebar() {
         </nav>
 
         <div className={`mt-auto border-t border-slate-100 pt-4 ${collapsed ? "flex justify-center" : ""}`}>
+          {!collapsed && (
+            <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <LocationIcon location="Abuja Central" className="h-5 w-5 text-slate-700" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current branch</p>
+                  <p className="truncate text-xs font-semibold text-slate-800">Abuja Central</p>
+                </div>
+              </div>
+            </div>
+          )}
           <SignOutButton />
         </div>
       </aside>
