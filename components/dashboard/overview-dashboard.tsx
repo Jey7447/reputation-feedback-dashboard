@@ -5,76 +5,36 @@ import Link from "next/link";
 import { LocationIcon } from "@/components/dashboard/location-icon";
 
 type FeedbackRow = {
-  id: string;
-  overall_rating: number;
-  sentiment: string | null;
-  sentiment_score: number | null;
-  severity: string | null;
-  routing_status: string;
-  comments: string | null;
-  submitted_at: string | null;
-  location_name: string;
+  id: string; overall_rating: number; sentiment: string | null; sentiment_score: number | null;
+  severity: string | null; routing_status: string; comments: string | null; submitted_at: string | null; location_name: string;
 };
-
-type ResponseRow = {
-  id: string;
-  feedback_id: string;
-  review_status: string;
-};
-
+type ResponseRow = { id: string; feedback_id: string; review_status: string };
 type AlertRow = {
-  alert_id: string;
-  feedback_id: string;
-  alert_type: string;
-  alert_severity: string;
-  alert_status: string;
-  customer_name: string;
-  job_reference: string;
-  location_name: string;
+  alert_id: string; feedback_id: string; alert_type: string; alert_severity: string; alert_status: string;
+  customer_name: string; job_reference: string; location_name: string;
 };
-
-type Props = {
-  locations: { id: string; name: string }[];
-  feedback: FeedbackRow[];
-  responses: ResponseRow[];
-  alerts: AlertRow[];
-};
+type Props = { locations: { id: string; name: string }[]; feedback: FeedbackRow[]; responses: ResponseRow[]; alerts: AlertRow[] };
 
 const routingLabels: Record<string, string> = {
-  ready_to_post: "Ready to post",
-  private_queue: "Private queue",
-  manager_escalated: "Manager escalated",
-  human_review: "Human review",
-  processing: "Processing",
-  pending_analysis: "Pending analysis",
+  ready_to_post: "Ready to post", private_queue: "Private queue", manager_escalated: "Manager escalated",
+  human_review: "Human review", processing: "Processing", pending_analysis: "Pending analysis",
 };
-
 const routingTone: Record<string, string> = {
-  ready_to_post: "bg-emerald-50 text-emerald-700",
-  private_queue: "bg-amber-50 text-amber-700",
-  manager_escalated: "bg-red-50 text-red-700",
-  human_review: "bg-blue-50 text-blue-700",
-  processing: "bg-slate-100 text-slate-700",
-  pending_analysis: "bg-slate-100 text-slate-600",
+  ready_to_post: "bg-emerald-50 text-emerald-700", private_queue: "bg-amber-50 text-amber-700",
+  manager_escalated: "bg-red-50 text-red-700", human_review: "bg-blue-50 text-blue-700",
+  processing: "bg-slate-100 text-slate-700", pending_analysis: "bg-slate-100 text-slate-600",
 };
 
 export function OverviewDashboard({ locations: branchLocations, feedback, responses, alerts }: Props) {
-  const locations = useMemo(
-    () => ["All locations", ...branchLocations.map((item) => item.name).filter(Boolean)],
-    [branchLocations],
-  );
+  const locations = useMemo(() => ["All locations", ...branchLocations.map((item) => item.name).filter(Boolean)], [branchLocations]);
   const [location, setLocation] = useState("All locations");
 
   const filteredFeedback = useMemo(
     () => location === "All locations" ? feedback : feedback.filter((item) => item.location_name === location),
     [feedback, location],
   );
-
   const filteredIds = useMemo(() => new Set(filteredFeedback.map((item) => item.id)), [filteredFeedback]);
-  const filteredResponses = useMemo(
-    () => responses.filter((item) => filteredIds.has(item.feedback_id)),
-    [responses, filteredIds],
-  );
+  const filteredResponses = useMemo(() => responses.filter((item) => filteredIds.has(item.feedback_id)), [responses, filteredIds]);
   const filteredAlerts = useMemo(
     () => location === "All locations" ? alerts : alerts.filter((item) => item.location_name === location),
     [alerts, location],
@@ -87,67 +47,68 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
   const ready = filteredFeedback.filter((item) => item.routing_status === "ready_to_post").length;
   const privateQueue = filteredFeedback.filter((item) => item.routing_status === "private_queue").length;
   const escalated = filteredFeedback.filter((item) => item.routing_status === "manager_escalated").length;
+  const humanReview = filteredFeedback.filter((item) => item.routing_status === "human_review").length;
+  const pendingAnalysis = filteredFeedback.filter((item) => item.routing_status === "pending_analysis").length;
   const pendingResponses = filteredResponses.filter((item) => item.review_status === "pending_review").length;
   const approvedResponses = filteredResponses.filter((item) => item.review_status === "approved").length;
   const sentResponses = filteredResponses.filter((item) => item.review_status === "sent").length;
   const openAlerts = filteredAlerts.filter((item) => item.alert_status === "pending").length;
   const actedAlerts = filteredAlerts.filter((item) => item.alert_status !== "pending").length;
-  const avgSentiment = filteredFeedback.filter((item) => item.sentiment_score !== null).length
-    ? Math.round(filteredFeedback.filter((item) => item.sentiment_score !== null).reduce((sum, item) => sum + (item.sentiment_score ?? 0), 0) / filteredFeedback.filter((item) => item.sentiment_score !== null).length)
-    : null;
+  const scoredFeedback = filteredFeedback.filter((item) => item.sentiment_score !== null);
+  const avgSentiment = scoredFeedback.length ? Math.round(scoredFeedback.reduce((sum, item) => sum + (item.sentiment_score ?? 0), 0) / scoredFeedback.length) : null;
   const avgRating = total ? (filteredFeedback.reduce((sum, item) => sum + item.overall_rating, 0) / total).toFixed(1) : "—";
-
+  const attentionCount = openAlerts + pendingResponses + humanReview + escalated;
   const maxSentiment = Math.max(1, positive, neutral, negative);
   const maxRouting = Math.max(1, ready, privateQueue, escalated);
-  const branchRows = useMemo(() => {
-    return branchLocations.map(({ name }) => {
-      const rows = feedback.filter((item) => item.location_name === name);
-      const branchPositive = rows.filter((item) => item.sentiment === "positive").length;
-      const branchNegative = rows.filter((item) => item.sentiment === "negative").length;
-      const branchReady = rows.filter((item) => item.routing_status === "ready_to_post").length;
-      const branchPrivate = rows.filter((item) => item.routing_status === "private_queue").length;
-      const branchEscalated = rows.filter((item) => item.routing_status === "manager_escalated").length;
-      const scoreRows = rows.filter((item) => item.sentiment_score !== null);
-      return {
-        name,
-        total: rows.length,
-        positive: branchPositive,
-        negative: branchNegative,
-        ready: branchReady,
-        privateQueue: branchPrivate,
-        escalated: branchEscalated,
-        avgScore: scoreRows.length ? Math.round(scoreRows.reduce((sum, item) => sum + (item.sentiment_score ?? 0), 0) / scoreRows.length) : null,
-      };
-    });
-  }, [feedback, branchLocations]);
+
+  const branchRows = useMemo(() => branchLocations.map(({ name }) => {
+    const rows = feedback.filter((item) => item.location_name === name);
+    const branchPositive = rows.filter((item) => item.sentiment === "positive").length;
+    const branchNegative = rows.filter((item) => item.sentiment === "negative").length;
+    const branchReady = rows.filter((item) => item.routing_status === "ready_to_post").length;
+    const branchPrivate = rows.filter((item) => item.routing_status === "private_queue").length;
+    const branchEscalated = rows.filter((item) => item.routing_status === "manager_escalated").length;
+    const scoreRows = rows.filter((item) => item.sentiment_score !== null);
+    return {
+      name, total: rows.length, positive: branchPositive, negative: branchNegative,
+      ready: branchReady, privateQueue: branchPrivate, escalated: branchEscalated,
+      avgScore: scoreRows.length ? Math.round(scoreRows.reduce((sum, item) => sum + (item.sentiment_score ?? 0), 0) / scoreRows.length) : null,
+    };
+  }), [feedback, branchLocations]);
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-slate-950 p-5 text-white shadow-sm sm:p-7 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">144 Auto Repair</p>
-          <h1 className="mt-2 break-words text-3xl font-black tracking-tight sm:text-4xl">Reputation Command Center</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            A live operating view of customer sentiment, routing, response work, and branch-level reputation.
-          </p>
+      <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-sm">
+        <div className="flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">144 Auto Repair</span>
+              <span className="text-[11px] font-medium text-slate-400">Reputation Intelligence</span>
+            </div>
+            <h1 className="mt-3 break-words text-3xl font-black tracking-tight sm:text-4xl">Reputation Command Center</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Monitor customer sentiment, response work, escalation, and branch activity from one operating view.
+            </p>
+          </div>
+          <div className="w-full lg:w-64">
+            <label htmlFor="overview-location" className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Branch view</label>
+            <select id="overview-location" value={location} onChange={(event) => setLocation(event.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm font-semibold text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+              {locations.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </div>
         </div>
-        <div className="w-full lg:w-64">
-          <label htmlFor="overview-location" className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">Branch view</label>
-          <select
-            id="overview-location"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            className="h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm font-semibold text-white outline-none focus:border-white"
-          >
-            {locations.map((item) => <option key={item}>{item}</option>)}
-          </select>
+        <div className="grid border-t border-white/10 sm:grid-cols-3">
+          <HeroStat label="Feedback" value={total} detail="submissions" />
+          <HeroStat label="Attention needed" value={attentionCount} detail="open work items" />
+          <HeroStat label="Average rating" value={avgRating} detail="out of 5" />
         </div>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Metric label="Feedback received" value={total} detail="All submissions" />
-        <Metric label="Average rating" value={avgRating} detail="Out of 5" />
         <Metric label="Sentiment score" value={avgSentiment === null ? "—" : avgSentiment} detail="AI score / 100" />
+        <Metric label="Positive" value={positive} detail="Positive feedback" />
+        <Metric label="Negative" value={negative} detail="Needs attention" danger={negative > 0} />
         <Metric label="Open alerts" value={openAlerts} detail="Manager action" danger={openAlerts > 0} />
         <Metric label="Pending responses" value={pendingResponses} detail="Human review" warning={pendingResponses > 0} />
       </section>
@@ -158,9 +119,7 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
           <BarRow label="Neutral" value={neutral} max={maxSentiment} tone="bg-slate-400" />
           <BarRow label="Negative" value={negative} max={maxSentiment} tone="bg-red-500" />
           <div className="mt-5 grid grid-cols-3 gap-2">
-            <MiniStat label="Positive" value={positive} />
-            <MiniStat label="Neutral" value={neutral} />
-            <MiniStat label="Negative" value={negative} />
+            <MiniStat label="Positive" value={positive} /><MiniStat label="Neutral" value={neutral} /><MiniStat label="Negative" value={negative} />
           </div>
         </Panel>
 
@@ -168,55 +127,39 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
           <BarRow label="Ready to post" value={ready} max={maxRouting} tone="bg-emerald-500" />
           <BarRow label="Private queue" value={privateQueue} max={maxRouting} tone="bg-amber-500" />
           <BarRow label="Manager escalated" value={escalated} max={maxRouting} tone="bg-red-500" />
-          <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            Human review: <strong className="text-slate-900">{filteredFeedback.filter((item) => item.routing_status === "human_review").length}</strong>
-            <span className="mx-2 text-slate-300">·</span>
-            Pending analysis: <strong className="text-slate-900">{filteredFeedback.filter((item) => item.routing_status === "pending_analysis").length}</strong>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <MiniStat label="Human review" value={humanReview} />
+            <MiniStat label="Pending analysis" value={pendingAnalysis} />
           </div>
         </Panel>
       </section>
 
       <section>
         <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-slate-950">Branch performance</h2>
-            <p className="mt-1 text-sm text-slate-500">A compact reputation snapshot for every location.</p>
-          </div>
-          <Link href="/dashboard/feedback" className="text-sm font-semibold text-blue-600 hover:text-blue-700">View feedback</Link>
+          <div><h2 className="text-lg font-bold text-slate-950">Branch performance</h2><p className="mt-1 text-sm text-slate-500">A compact reputation snapshot for every active location.</p></div>
+          <Link href="/dashboard/feedback" className="text-sm font-semibold text-blue-600 hover:text-blue-700">View feedback →</Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {branchRows.map((branch) => (
-            <button
-              key={branch.name}
-              type="button"
-              onClick={() => setLocation(branch.name)}
-              className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-            >
+            <button key={branch.name} type="button" onClick={() => setLocation(branch.name)}
+              className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                    <LocationIcon location={branch.name} className="h-7 w-7" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="truncate font-bold text-slate-950">{branch.name}</h3>
-                    <p className="text-xs text-slate-500">{branch.total} feedback record{branch.total === 1 ? "" : "s"}</p>
-                  </div>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><LocationIcon location={branch.name} className="h-7 w-7" /></span>
+                  <div className="min-w-0"><h3 className="truncate font-bold text-slate-950">{branch.name}</h3><p className="text-xs text-slate-500">{branch.total} feedback record{branch.total === 1 ? "" : "s"}</p></div>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                  {branch.avgScore === null ? "—" : `${branch.avgScore}/100`}
-                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{branch.avgScore === null ? "—" : `${branch.avgScore}/100`}</span>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-xs">
                 <div className="rounded-lg bg-emerald-50 p-2"><span className="block text-emerald-600">Ready</span><strong className="text-emerald-800">{branch.ready}</strong></div>
                 <div className="rounded-lg bg-amber-50 p-2"><span className="block text-amber-600">Private</span><strong className="text-amber-800">{branch.privateQueue}</strong></div>
                 <div className="rounded-lg bg-red-50 p-2"><span className="block text-red-600">Escalated</span><strong className="text-red-800">{branch.escalated}</strong></div>
               </div>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${branch.total ? (branch.positive / branch.total) * 100 : 0}%` }} />
-              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${branch.total ? (branch.positive / branch.total) * 100 : 0}%` }} /></div>
               <p className="mt-2 text-xs text-slate-400">{branch.positive} positive · {branch.negative} negative</p>
             </button>
           ))}
+          {!branchRows.length && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">No active locations are configured yet.</div>}
         </div>
       </section>
 
@@ -227,28 +170,16 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
             <PipelineStep label="Approved" value={approvedResponses} tone="bg-blue-50 text-blue-700" />
             <PipelineStep label="Sent" value={sentResponses} tone="bg-emerald-50 text-emerald-700" />
           </div>
-          <Link href="/dashboard/responses" className="mt-4 block rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Open response queue →
-          </Link>
+          <Link href="/dashboard/responses" className="mt-4 block rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">Open response queue →</Link>
         </Panel>
 
         <Panel title="Alert activity" subtitle="Manager intervention status">
-          <div className="grid grid-cols-2 gap-3">
-            <MiniStat label="Open" value={openAlerts} />
-            <MiniStat label="Acted on" value={actedAlerts} />
-          </div>
+          <div className="grid grid-cols-2 gap-3"><MiniStat label="Open" value={openAlerts} /><MiniStat label="Acted on" value={actedAlerts} /></div>
           <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-700">Actioned share</span>
-              <span className="font-bold text-slate-950">{filteredAlerts.length ? Math.round((actedAlerts / filteredAlerts.length) * 100) : 0}%</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full rounded-full bg-slate-800" style={{ width: `${filteredAlerts.length ? (actedAlerts / filteredAlerts.length) * 100 : 0}%` }} />
-            </div>
+            <div className="flex items-center justify-between text-sm"><span className="font-semibold text-slate-700">Actioned share</span><span className="font-bold text-slate-950">{filteredAlerts.length ? Math.round((actedAlerts / filteredAlerts.length) * 100) : 0}%</span></div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-slate-800 transition-all" style={{ width: `${filteredAlerts.length ? (actedAlerts / filteredAlerts.length) * 100 : 0}%` }} /></div>
           </div>
-          <Link href="/dashboard/alerts" className="mt-4 block rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Open manager alerts →
-          </Link>
+          <Link href="/dashboard/alerts" className="mt-4 block rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">Open manager alerts →</Link>
         </Panel>
       </section>
 
@@ -260,16 +191,9 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-700">{item.overall_rating}/5</div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-medium leading-5 text-slate-800">{item.comments || "No written comment."}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                    <span>{item.location_name}</span>
-                    <span>·</span>
-                    <span>{item.sentiment ?? "Unanalyzed"}</span>
-                    {item.sentiment_score !== null && <><span>·</span><span>{item.sentiment_score}/100</span></>}
-                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>{item.location_name}</span><span>·</span><span>{item.sentiment ?? "Unanalyzed"}</span>{item.sentiment_score !== null && <><span>·</span><span>{item.sentiment_score}/100</span></>}</div>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${routingTone[item.routing_status] ?? "bg-slate-100 text-slate-600"}`}>
-                  {routingLabels[item.routing_status] ?? item.routing_status}
-                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${routingTone[item.routing_status] ?? "bg-slate-100 text-slate-600"}`}>{routingLabels[item.routing_status] ?? item.routing_status}</span>
               </div>
             ))}
             {!filteredFeedback.length && <p className="py-4 text-sm text-slate-500">No feedback matches this branch.</p>}
@@ -281,13 +205,8 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
             {filteredAlerts.slice(0, 6).map((alert) => (
               <div key={alert.alert_id} className="flex gap-3 py-4 first:pt-0 last:pb-0">
                 <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${alert.alert_status === "pending" ? "bg-red-500" : "bg-emerald-500"}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-800">{alert.alert_type === "repeat_negative" ? "Repeat negative" : "High severity"} · {alert.customer_name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{alert.location_name} · {alert.job_reference}</p>
-                </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${alert.alert_status === "pending" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
-                  {alert.alert_status === "pending" ? "Open" : alert.alert_status}
-                </span>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{alert.alert_type === "repeat_negative" ? "Repeat negative" : "High severity"} · {alert.customer_name}</p><p className="mt-1 text-xs text-slate-500">{alert.location_name} · {alert.job_reference}</p></div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${alert.alert_status === "pending" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{alert.alert_status === "pending" ? "Open" : alert.alert_status}</span>
               </div>
             ))}
             {!filteredAlerts.length && <p className="py-4 text-sm text-slate-500">No alerts for this branch.</p>}
@@ -298,56 +217,21 @@ export function OverviewDashboard({ locations: branchLocations, feedback, respon
   );
 }
 
+function HeroStat({ label, value, detail }: { label: string; value: string | number; detail: string }) {
+  return <div className="border-white/10 px-5 py-4 first:border-r sm:px-7"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p><p className="mt-1 text-2xl font-black">{value}</p><p className="text-xs text-slate-500">{detail}</p></div>;
+}
 function Metric({ label, value, detail, danger, warning }: { label: string; value: string | number; detail: string; danger?: boolean; warning?: boolean }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-2 text-3xl font-black tracking-tight ${danger ? "text-red-600" : warning ? "text-amber-600" : "text-slate-950"}`}>{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
-    </div>
-  );
+  return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-2 text-3xl font-black tracking-tight ${danger ? "text-red-600" : warning ? "text-amber-600" : "text-slate-950"}`}>{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>;
 }
-
 function Panel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="mb-5">
-        <h2 className="font-bold text-slate-950">{title}</h2>
-        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-      </div>
-      {children}
-    </div>
-  );
+  return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div className="mb-5"><h2 className="font-bold text-slate-950">{title}</h2><p className="mt-1 text-sm text-slate-500">{subtitle}</p></div>{children}</div>;
 }
-
 function BarRow({ label, value, max, tone }: { label: string; value: number; max: number; tone: string }) {
-  return (
-    <div className="mb-4 last:mb-0">
-      <div className="mb-1.5 flex items-center justify-between text-sm">
-        <span className="font-semibold text-slate-700">{label}</span>
-        <span className="font-bold text-slate-950">{value}</span>
-      </div>
-      <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${(value / max) * 100}%` }} />
-      </div>
-    </div>
-  );
+  return <div className="mb-4 last:mb-0"><div className="mb-1.5 flex items-center justify-between text-sm"><span className="font-semibold text-slate-700">{label}</span><span className="font-bold text-slate-950">{value}</span></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${tone}`} style={{ width: `${(value / max) * 100}%` }} /></div></div>;
 }
-
 function MiniStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl bg-slate-50 p-3">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
-    </div>
-  );
+  return <div className="rounded-xl bg-slate-50 p-3"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-xl font-black text-slate-950">{value}</p></div>;
 }
-
 function PipelineStep({ label, value, tone }: { label: string; value: number; tone: string }) {
-  return (
-    <div className={`rounded-xl p-4 ${tone}`}>
-      <p className="text-[11px] font-bold uppercase tracking-wider">{label}</p>
-      <p className="mt-2 text-2xl font-black">{value}</p>
-    </div>
-  );
+  return <div className={`rounded-xl p-4 ${tone}`}><p className="text-[11px] font-bold uppercase tracking-wider">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>;
 }
