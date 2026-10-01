@@ -87,9 +87,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // The register_customer RPC returns customer_id, while the dashboard
+    // consistently expects the customer identifier to be called id.
+    const normalizedCustomer: Customer & { was_existing?: boolean } = {
+      id: customer.customer_id,
+      full_name: customer.full_name,
+      email: customer.email,
+      phone: customer.phone,
+      created_at: customer.created_at,
+      was_existing: Boolean(customer.was_existing),
+    };
+
+    if (!normalizedCustomer.id) {
+      return NextResponse.json(
+        { error: "Customer registration returned an invalid customer ID." },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
       {
-        data: customer,
+        data: normalizedCustomer,
         existing: Boolean(customer.was_existing),
         message: customer.was_existing
           ? "A customer with that email or phone number already exists."
