@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   let alerts: DashboardAlert[] = [];
+  let locations: { id: string; name: string }[] = [];
   let feedback: {
     id: string;
     overall_rating: number;
@@ -23,7 +24,7 @@ export default async function DashboardPage() {
   try {
     const supabase = await createSupabaseServerClient();
 
-    const [alertsResult, feedbackResult, responsesResult] = await Promise.all([
+    const [alertsResult, feedbackResult, responsesResult, locationsResult] = await Promise.all([
       getDashboardAlerts(),
       supabase
         .from("feedback")
@@ -34,11 +35,19 @@ export default async function DashboardPage() {
       supabase
         .from("feedback_responses")
         .select("id, feedback_id, review_status"),
+      supabase
+        .from("locations")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name"),
     ]);
 
     if (alertsResult) alerts = alertsResult;
     if (feedbackResult.error) throw new Error(feedbackResult.error.message);
     if (responsesResult.error) throw new Error(responsesResult.error.message);
+    if (locationsResult.error) throw new Error(locationsResult.error.message);
+
+    locations = locationsResult.data ?? [];
 
     feedback = (feedbackResult.data ?? []).map((item: any) => ({
       id: item.id,
@@ -64,7 +73,7 @@ export default async function DashboardPage() {
           <strong>Dashboard data:</strong> {dataError}
         </div>
       ) : null}
-      <OverviewDashboard feedback={feedback} responses={responses} alerts={alerts} />
+      <OverviewDashboard locations={locations} feedback={feedback} responses={responses} alerts={alerts} />
     </div>
   );
 }
