@@ -1,0 +1,125 @@
+{
+  "name": "Approved Response Delivery",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "response-approved",
+        "options": {
+          "responseCode": {
+            "values": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3cd0bcb8-3164-41d6-b982-370e067c4b3e",
+      "name": "Response Approved"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    frs.id AS response_id,\n    frs.feedback_id,\n    frs.response_draft,\n    frs.final_response,\n    frs.review_status,\n\n    c.full_name AS customer_name,\n    c.email AS customer_email,\n    c.phone AS customer_phone,\n\n    v.job_reference,\n    l.name AS location_name\n\nFROM public.feedback_responses frs\nJOIN public.feedback f\n    ON f.id = frs.feedback_id\nJOIN public.feedback_requests fre\n    ON fre.id = f.feedback_request_id\nJOIN public.visits v\n    ON v.id = fre.visit_id\nJOIN public.customers c\n    ON c.id = v.customer_id\nJOIN public.locations l\n    ON l.id = v.location_id\n\nWHERE frs.id = $1\n  AND frs.review_status = 'approved';",
+        "options": {
+          "queryReplacement": "={{ $json.body.record.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7c142c08-0f7b-42b2-b4ff-44223ef6f334",
+      "name": "Get Approved Response"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.customer_email }}",
+        "subject": "=Response to Your Feedback — {{ $json.job_reference }}",
+        "emailType": "text",
+        "message": "=Hello {{ $json.customer_name }},\n\n{{ $json.final_response }}\n\nBest regards,\n144 Auto Repair Customer Care Team",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "db4d4bfb-15c7-44f2-94aa-3b43376b163a",
+      "name": "Send Approved Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback_responses\nSET\n    review_status = 'sent',\n    updated_at = NOW()\nWHERE id = $1\n  AND review_status = 'approved'\nRETURNING\n    id AS response_id,\n    feedback_id,\n    review_status,\n    updated_at;",
+        "options": {
+          "queryReplacement": "={{ $('Get Approved Response').item.json.response_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e8e0ebc9-9da9-4f58-b302-ec0f937dba98",
+      "name": "Mark Response Sent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Response Approved": {
+      "main": [
+        [
+          {
+            "node": "Get Approved Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Approved Response": {
+      "main": [
+        [
+          {
+            "node": "Send Approved Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approved Response": {
+      "main": [
+        [
+          {
+            "node": "Mark Response Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0370b7a4-f94f-42cf-a923-7f8164d498d4",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "rx7TqVGqmT722AAn",
+  "tags": []
+}
