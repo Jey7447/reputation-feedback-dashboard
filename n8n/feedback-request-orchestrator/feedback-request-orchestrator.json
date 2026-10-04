@@ -1,0 +1,177 @@
+{
+  "name": "Feedback Request Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "feedback-request-created",
+        "options": {
+          "responseCode": {
+            "values": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "15258fae-2d17-4173-bdc8-6760b2af9d4f",
+      "name": "Webhook — Feedback Request Created",
+      "webhookId": "e25dc149-c69d-43c5-bbbd-df88dbb3d891"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dd3589ea-c6b0-4d2f-ac37-51bb666fb885",
+              "name": "feedback_url",
+              "value": "={{ 'https://reputation-feedback-dashboard.vercel.app/feedback/' + $json.body.record.feedback_token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        192,
+        0
+      ],
+      "id": "fb864dbf-b7c2-4605-89e9-fbc1dfc7815e",
+      "name": "Build Feedback Link"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    v.id AS visit_id,\n    v.job_reference,\n    v.completed_at,\n\n    c.id AS customer_id,\n    c.full_name AS customer_name,\n    c.email AS customer_email,\n    c.phone AS customer_phone,\n\n    l.id AS location_id,\n    l.name AS location_name,\n    l.address AS location_address,\n\n    fr.id AS feedback_request_id,\n    fr.channel,\n    fr.status AS feedback_request_status,\n    fr.feedback_token,\n    fr.expires_at,\n    fr.sent_at\n\nFROM public.visits v\n\nJOIN public.customers c\n    ON c.id = v.customer_id\n\nJOIN public.locations l\n    ON l.id = v.location_id\n\nJOIN public.feedback_requests fr\n    ON fr.visit_id = v.id\n\nWHERE v.id = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.body.record.visit_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        384,
+        0
+      ],
+      "id": "5cccc0f8-5930-4ced-aac7-e39c75b028dc",
+      "name": "Get Customer Details",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.customer_email }}",
+        "subject": "We'd love your feedback on your visit to 144 Auto Repair",
+        "emailType": "text",
+        "message": "=Hi {{ $json.customer_name }},  Thank you for visiting 144 Auto Repair.  We'd love to hear about your experience. Your feedback helps us improve our service.  Please share your feedback using the link below:  {{ $('Build Feedback Link').item.json.feedback_url }}  This feedback link is available until {{ $json.expires_at }}.  Thank you, 144 Auto Repair",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "8521810f-fa28-4617-ac3d-d5418a12b289",
+      "name": "Send a message",
+      "webhookId": "9d5a317e-c880-480b-9d6b-c834833415ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback_requests\nSET\n    status = 'sent',\n    sent_at = NOW()\nWHERE id = $1\n  AND status = 'pending'\nRETURNING id, status, sent_at;",
+        "options": {
+          "queryReplacement": "={{ $('Get Customer Details').item.json.feedback_request_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        832,
+        0
+      ],
+      "id": "0243bdbd-3667-46b5-8448-0ef1828fd13d",
+      "name": "Mark Feedback Request Sent",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook — Feedback Request Created": {
+      "main": [
+        [
+          {
+            "node": "Build Feedback Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Feedback Link": {
+      "main": [
+        [
+          {
+            "node": "Get Customer Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Customer Details": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Mark Feedback Request Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "013b7d2b-8a9f-41e8-9c6e-a5bf3ab722d5",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "hSL7rz8NkJk3L4yc",
+  "tags": []
+}
