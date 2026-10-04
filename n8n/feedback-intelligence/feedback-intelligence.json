@@ -1,0 +1,1061 @@
+{
+  "name": "Feedback Intelligence & Routing",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    f.id AS feedback_id,\n    f.feedback_request_id,\n    f.overall_rating,\n    f.technician_rating,\n    f.facility_rating,\n    f.waiting_time_rating,\n    f.feedback_category,\n    f.comments,\n    f.routing_status,\n\n    c.id AS customer_id,\n    c.full_name AS customer_name,\n\n    v.id AS visit_id,\n    v.job_reference,\n\n    l.id AS location_id,\n    l.name AS location_name\n\nFROM public.feedback f\n\nJOIN public.feedback_requests fr\n    ON fr.id = f.feedback_request_id\n\nJOIN public.visits v\n    ON v.id = fr.visit_id\n\nJOIN public.customers c\n    ON c.id = v.customer_id\n\nJOIN public.locations l\n    ON l.id = v.location_id\n\nWHERE f.routing_status = 'pending_analysis';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -1600,
+        -16
+      ],
+      "id": "694a0d16-bf1a-4d01-b64b-3e14c47f0574",
+      "name": "Get Pending Feedback",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a customer feedback analysis system for a multi-location auto repair and car-care business.\n\nYour job is to analyze customer feedback and classify:\n\n1. Sentiment\n2. Sentiment score\n3. Severity\n4. Severity score\n5. Confidence score\n6. A short reason for the analysis\n\nSENTIMENT RULES:\n\n- positive = the customer is generally satisfied\n- neutral = the feedback is neither clearly positive nor negative\n- negative = the customer expresses dissatisfaction, complaint, or an unresolved problem\n\nSENTIMENT SCORE:\n\nMeasure the strength of the sentiment:\n- 0 = extremely negative\n- 50 = neutral\n- 100 = extremely positive\n\nThe score should reflect the emotional direction and strength of the customer's feedback.\n\nSEVERITY RULES:\n\n- low = minor dissatisfaction or inconvenience\n- medium = a meaningful service problem that requires staff attention\n- high = a serious issue that may require manager intervention\n\nImportant:\nA low rating alone does not automatically mean high severity.\nConsider the actual complaint, its impact, and the circumstances described by the customer.\n\nSCORING:\n\n- sentiment_score must be between 0 and 100\n- severity_score must be between 0 and 100\n- confidence_score must be between 0 and 100\n\nConfidence represents how certain you are that your analysis is supported by the available information.\n\nReturn ONLY valid JSON in exactly this structure:\n\n{\n  \"sentiment\": \"positive\",\n  \"sentiment_score\": 0,\n  \"severity\": \"low\",\n  \"severity_score\": 0,\n  \"confidence_score\": 0,\n  \"ai_reason\": \"Short explanation of the analysis.\"\n}\n\nDo not include markdown.\nDo not include additional fields.\nDo not make routing decisions."
+            },
+            {
+              "content": "=Analyze the following customer feedback.\n\nCustomer: {{ $json.customer_name }}\nLocation: {{ $json.location_name }}\nJob Reference: {{ $json.job_reference }}\n\nOverall Rating: {{ $json.overall_rating }}\nTechnician Rating: {{ $json.technician_rating }}\nFacility Rating: {{ $json.facility_rating }}\nWaiting Time Rating: {{ $json.waiting_time_rating }}\n\nFeedback Category: {{ $json.feedback_category }}\n\nCustomer Comment:\n{{ $json.comments }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "feedback_analysis",
+              "schema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"sentiment\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"positive\",\n        \"neutral\",\n        \"negative\"\n      ]\n    },\n    \"sentiment_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 100\n    },\n    \"severity\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"low\",\n        \"medium\",\n        \"high\"\n      ]\n    },\n    \"severity_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 100\n    },\n    \"confidence_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 100\n    },\n    \"ai_reason\": {\n      \"type\": \"string\"\n    }\n  },\n  \"additionalProperties\": false,\n  \"required\": [\n    \"sentiment\",\n    \"sentiment_score\",\n    \"severity\",\n    \"severity_score\",\n    \"confidence_score\",\n    \"ai_reason\"\n  ]\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -1152,
+        -16
+      ],
+      "id": "d51a0077-8900-461e-ae92-b4effd6197ca",
+      "name": "Analyze Feedback with AI",
+      "credentials": {
+        "openAiApi": {
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst originalItems = $('Get Pending Feedback').all();\n\nreturn inputItems.map((item, index) => {\n  const aiOutput = item.json.output?.[0]?.content?.[0]?.text;\n  const original = originalItems[index]?.json;\n\n  if (!aiOutput) {\n    throw new Error('AI analysis output was not found.');\n  }\n\n  // The AI node may return the structured result as an object\n  // or as a JSON string, so handle both cases.\n  const analysis =\n    typeof aiOutput === 'string'\n      ? JSON.parse(aiOutput)\n      : aiOutput;\n\n  return {\n    json: {\n      feedback_id: original.feedback_id,\n      feedback_request_id: original.feedback_request_id,\n      customer_id: original.customer_id,\n      visit_id: original.visit_id,\n      location_id: original.location_id,\n      job_reference: original.job_reference,\n\n      sentiment: analysis.sentiment,\n      sentiment_score: analysis.sentiment_score,\n      severity: analysis.severity,\n      severity_score: analysis.severity_score,\n      confidence_score: analysis.confidence_score,\n      ai_reason: analysis.ai_reason\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -16
+      ],
+      "id": "fac1df8f-5e86-453f-9ffe-49cc3e0bcf11",
+      "name": "Parse AI Analysis"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback\nSET\n    sentiment = '{{ $json.sentiment }}',\n    sentiment_score = {{ $json.sentiment_score }},\n    severity = '{{ $json.severity }}',\n    severity_score = {{ $json.severity_score }},\n    confidence_score = {{ $json.confidence_score }},\n    ai_reason = '{{ $json.ai_reason.replace(/'/g, \"''\") }}',\n    updated_at = NOW()\nWHERE id = '{{ $json.feedback_id }}'\nRETURNING\n    id,\n    sentiment,\n    sentiment_score,\n    severity,\n    severity_score,\n    confidence_score,\n    ai_reason,\n    routing_status,\n    updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -576,
+        -16
+      ],
+      "id": "40bd4db1-cdbe-43b3-9af8-b0e8fcf5ab9d",
+      "name": "Update Feedback Analysis",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b215a1b0-e78f-464d-9e6f-e7ac9b3d2a62",
+              "leftValue": "={{ $json.confidence_score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -352,
+        -16
+      ],
+      "id": "6b4f2295-e5e3-4bc9-b622-e9feaa78a296",
+      "name": "Check Analysis Confidence"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback\nSET\n    routing_status = 'human_review',\n    updated_at = NOW()\nWHERE id = '{{ $json.id }}'\nRETURNING\n    id,\n    sentiment,\n    severity,\n    confidence_score,\n    routing_status,\n    updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        320,
+        176
+      ],
+      "id": "215f37b1-db7a-47f8-bfe0-750fbad2f19d",
+      "name": "Route to Human Review",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    f.id AS feedback_id,\n    v.customer_id,\n\n    f.sentiment,\n    f.sentiment_score,\n    f.severity,\n    f.severity_score,\n    f.confidence_score,\n    f.ai_reason,\n\n    (\n        SELECT COUNT(*)\n        FROM public.feedback previous_f\n        JOIN public.feedback_requests previous_fr\n            ON previous_fr.id = previous_f.feedback_request_id\n        JOIN public.visits previous_v\n            ON previous_v.id = previous_fr.visit_id\n        WHERE previous_v.customer_id = v.customer_id\n          AND previous_f.sentiment = 'negative'\n          AND previous_f.id <> f.id\n    ) AS previous_negative_count\n\nFROM public.feedback f\n\nJOIN public.feedback_requests fr\n    ON fr.id = f.feedback_request_id\n\nJOIN public.visits v\n    ON v.id = fr.visit_id\n\nWHERE f.id = '{{ $json.id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        320,
+        -48
+      ],
+      "id": "d4f01090-c824-4359-bae1-19d85e5131f6",
+      "name": "Check Customer Negative History",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dd1fab90-eb27-4caf-ae23-be872f277789",
+              "leftValue": "={{ $json.previous_negative_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        -48
+      ],
+      "id": "58f46f45-64ea-4cdc-92ea-89df55a7c8d7",
+      "name": "Check Repeat Negative"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH updated_feedback AS (\n    UPDATE public.feedback\n    SET\n        routing_status = 'manager_escalated',\n        updated_at = NOW()\n    WHERE id = '{{ $json.feedback_id }}'\n    RETURNING\n        id,\n        feedback_request_id,\n        sentiment,\n        sentiment_score,\n        severity,\n        severity_score,\n        confidence_score,\n        ai_reason,\n        routing_status,\n        updated_at\n)\nSELECT\n    uf.id AS feedback_id,\n    uf.feedback_request_id,\n    uf.sentiment,\n    uf.sentiment_score,\n    uf.severity,\n    uf.severity_score,\n    uf.confidence_score,\n    uf.ai_reason,\n    uf.routing_status,\n    uf.updated_at,\n    f.overall_rating,\n    f.technician_rating,\n    f.facility_rating,\n    f.waiting_time_rating,\n    f.comments,\n    f.feedback_category,\n    c.id AS customer_id,\n    c.full_name AS customer_name,\n    v.id AS visit_id,\n    v.job_reference,\n    l.id AS location_id,\n    l.name AS location_name\nFROM updated_feedback uf\nJOIN public.feedback_requests fr\n    ON fr.id = uf.feedback_request_id\nJOIN public.visits v\n    ON v.id = fr.visit_id\nJOIN public.customers c\n    ON c.id = v.customer_id\nJOIN public.locations l\n    ON l.id = v.location_id\nJOIN public.feedback f\n    ON f.id = uf.id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        992,
+        -240
+      ],
+      "id": "bbaa4008-f3df-46f6-8bf5-2bcf49cd921a",
+      "name": "Escalate Repeat Negative",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f6c5f8c7-844f-47f5-a1df-8e273d1d502d",
+              "leftValue": "={{ $json.severity_score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        768,
+        48
+      ],
+      "id": "41eac4e9-ca81-47db-acc9-7320afd5f07e",
+      "name": "Check High Severity"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback\nSET\n    routing_status = 'private_queue',\n    updated_at = NOW()\nWHERE id = '{{ $json.feedback_id }}'\nRETURNING\n    id,\n    sentiment,\n    severity,\n    confidence_score,\n    routing_status,\n    updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1216,
+        144
+      ],
+      "id": "0cc6ab72-8655-4006-8ead-20ea08757040",
+      "name": "Route to Private Queue",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "assistant",
+              "content": "=You are an assistant helping an auto-repair and car-care business prepare customer responses.\n\nGenerate a professional response draft for INTERNAL HUMAN REVIEW based on the customer's feedback.\n\nRules:\n- Be empathetic and professional.\n- Acknowledge the customer's specific concern.\n- Do not blame the customer.\n- Do not make promises about refunds, discounts, repairs, or compensation.\n- Do not claim that the business has already taken action.\n- Do not say that the response has been sent.\n- Do not mention AI.\n- Do not invent facts that are not present in the feedback.\n- Keep the response concise and natural.\n- The draft will be reviewed by a human before anything is sent.\n- Do not use placeholders such as [Your Name], [Company Name], [Position], or similar placeholders.\n- End the response naturally without a signature unless a specific business name or staff name is provided in the input.\n\nCustomer name:\n{{ $('Get Pending Feedback').item.json.full_name }}\n\nCustomer feedback:\n{{ $('Get Pending Feedback').item.json.comments }}\n\nOverall rating:\n{{ $('Get Pending Feedback').item.json.overall_rating }}\n\nTechnician rating:\n{{ $('Get Pending Feedback').item.json.technician_rating }}\n\nFacility rating:\n{{ $('Get Pending Feedback').item.json.facility_rating }}\n\nWaiting time rating:\n{{ $('Get Pending Feedback').item.json.waiting_time_rating }}\n\nFeedback category:\n{{ $('Get Pending Feedback').item.json.feedback_category }}\n\nSentiment:\n{{ $('Update Feedback Analysis').item.json.sentiment }}\n\nSeverity:\n{{ $('Update Feedback Analysis').item.json.severity }}\n\nAI analysis:\n{{ $('Update Feedback Analysis').item.json.ai_reason }}\n\nReturn ONLY valid JSON in this exact format:\n\n{\n  \"response_draft\": \"The draft response goes here.\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        144
+      ],
+      "id": "f0f7cb68-1b74-497f-a844-fe41b39510a0",
+      "name": "Generate Private Response Draft",
+      "credentials": {
+        "openAiApi": {
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst originalItems = $('Route to Private Queue').all();\n\nreturn inputItems.map((item, index) => {\n  const outputText = item.json.output?.[0]?.content?.[0]?.text;\n  const original = originalItems[index]?.json;\n\n  if (!outputText) {\n    throw new Error('AI response draft was not found.');\n  }\n\n  const parsed =\n    typeof outputText === 'string'\n      ? JSON.parse(outputText)\n      : outputText;\n\n  if (!parsed.response_draft) {\n    throw new Error('response_draft was not returned by the AI.');\n  }\n\n  return {\n    json: {\n      feedback_id: original.id,\n      response_draft: parsed.response_draft\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        144
+      ],
+      "id": "9c0ed956-87fa-44d8-ae1a-bc19a4d5eb43",
+      "name": "Parse Response Draft"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.feedback_responses (\n    feedback_id,\n    response_draft,\n    review_status\n)\nVALUES (\n    '{{ $json.feedback_id }}',\n    '{{ $json.response_draft.replace(/'/g, \"''\") }}',\n    'pending_review'\n)\nON CONFLICT (feedback_id) DO NOTHING\nRETURNING\n    id,\n    feedback_id,\n    response_draft,\n    review_status,\n    created_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2016,
+        -144
+      ],
+      "id": "de4e0b8a-a77b-4a07-93f2-36886570a40a",
+      "name": "Save Response Draft",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You generate professional customer response drafts for a multi-location auto repair business.\n\nWrite a concise, empathetic private response to the customer's feedback.\n\nThis is a repeat negative-feedback case. The customer has previously submitted negative feedback, so acknowledge their frustration and the importance of their experience.\n\nRules:\n- Be professional, empathetic, and specific to the feedback.\n- Do not be defensive.\n- Do not blame the customer, technician, or staff.\n- Do not invent facts, actions, refunds, appointments, investigations, or resolutions.\n- Do not claim that a manager has contacted the customer.\n- Do not promise a specific outcome.\n- Do not mention internal AI analysis, severity scores, confidence scores, routing decisions, or escalation logic.\n- Do not use placeholders such as [Your Name], [Company Name], [Position], or similar.\n- Do not include a fake signature.\n- End naturally if no specific staff or business name is provided.\n- Return only valid JSON.\n\nOutput format:\n{\n  \"response_draft\": \"...\"\n}"
+            },
+            {
+              "content": "=Create a private response draft for this customer feedback.\n\nCustomer:\n{{ $json.customer_name }}\n\nJob reference:\n{{ $json.job_reference }}\n\nLocation:\n{{ $json.location_name }}\n\nOverall rating:\n{{ $json.overall_rating }}\n\nTechnician rating:\n{{ $json.technician_rating }}\n\nFacility rating:\n{{ $json.facility_rating }}\n\nWaiting time rating:\n{{ $json.waiting_time_rating }}\n\nFeedback category:\n{{ $json.feedback_category }}\n\nCustomer comments:\n{{ $json.comments }}\n\nAI analysis:\n{{ $json.ai_reason }}\n\nThe customer has previously submitted negative feedback.\n\nWrite a concise, empathetic response that acknowledges the customer's frustration and their repeated experience without making promises or inventing actions."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        -240
+      ],
+      "id": "a74d043b-1115-4ac7-9433-5b977ed4d5e5",
+      "name": "Generate Escalated Response Draft",
+      "credentials": {
+        "openAiApi": {
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst originalItems = $('Escalate Repeat Negative').all();\n\nreturn inputItems.map((item, index) => {\n  const outputText = item.json.output?.[0]?.content?.[0]?.text;\n  const original = originalItems[index]?.json;\n\n  if (!outputText) {\n    throw new Error('AI escalated response draft was not found.');\n  }\n\n  const parsed =\n    typeof outputText === 'string'\n      ? JSON.parse(outputText)\n      : outputText;\n\n  if (!parsed.response_draft) {\n    throw new Error('response_draft was not returned by the AI.');\n  }\n\n  return {\n    json: {\n      feedback_id: original.feedback_id,\n      response_draft: parsed.response_draft\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -240
+      ],
+      "id": "8280fff4-c6cc-4c93-ba7c-f7ddf63e3283",
+      "name": "Parse Escalated Response Draft"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH updated_feedback AS (\n    UPDATE public.feedback\n    SET\n        routing_status = 'manager_escalated',\n        updated_at = NOW()\n    WHERE id = '{{ $json.feedback_id }}'\n    RETURNING\n        id,\n        feedback_request_id,\n        sentiment,\n        sentiment_score,\n        severity,\n        severity_score,\n        confidence_score,\n        ai_reason,\n        routing_status,\n        updated_at\n)\nSELECT\n    uf.id AS feedback_id,\n    uf.feedback_request_id,\n    uf.sentiment,\n    uf.sentiment_score,\n    uf.severity,\n    uf.severity_score,\n    uf.confidence_score,\n    uf.ai_reason,\n    uf.routing_status,\n    uf.updated_at,\n    f.overall_rating,\n    f.technician_rating,\n    f.facility_rating,\n    f.waiting_time_rating,\n    f.comments,\n    f.feedback_category,\n    c.id AS customer_id,\n    c.full_name AS customer_name,\n    v.id AS visit_id,\n    v.job_reference,\n    l.id AS location_id,\n    l.name AS location_name\nFROM updated_feedback uf\nJOIN public.feedback_requests fr\n    ON fr.id = uf.feedback_request_id\nJOIN public.visits v\n    ON v.id = fr.visit_id\nJOIN public.customers c\n    ON c.id = v.customer_id\nJOIN public.locations l\n    ON l.id = v.location_id\nJOIN public.feedback f\n    ON f.id = uf.id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        992,
+        -48
+      ],
+      "id": "9a76711a-9293-44d7-a7a1-c9bdb63f4130",
+      "name": "Escalate High Severity",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You generate professional customer response drafts for a multi-location auto repair business.\n\nWrite a concise, empathetic private response to the customer's feedback.\n\nThis is a high-severity customer feedback case. The response should acknowledge the seriousness of the customer's concern, particularly where the feedback involves vehicle safety or an unresolved repair issue.\n\nRules:\n- Be professional, empathetic, and specific to the feedback.\n- Take the customer's concern seriously without making unsupported claims.\n- Do not be defensive.\n- Do not blame the customer, technician, or staff.\n- Do not invent facts, actions, refunds, appointments, investigations, or resolutions.\n- Do not promise that the issue will be addressed, investigated, resolved, or followed up.\n- Do not claim that a manager or staff member has contacted the customer.\n- Do not imply that any follow-up action has already been taken.\n- Do not tell the customer to contact, call, email, visit, or reach out to the business unless that action is explicitly provided in the input.\n- Do not provide technical, mechanical, or driving advice.\n- Do not tell the customer that the vehicle is safe to drive.\n- Acknowledge safety concerns seriously without providing technical or safety instructions.\n- Do not make broad claims about the business's policies, priorities, or commitments unless those facts are provided in the input.\n- Do not mention internal AI analysis, severity scores, confidence scores, routing decisions, or escalation logic.\n- Do not use placeholders such as [Your Name], [Company Name], [Position], or similar.\n- Do not include a fake signature.\n- Do not use closing phrases that normally require a signature, such as \"Best regards,\" or \"Sincerely,\".\n- End with a complete, natural sentence.\n- Return only valid JSON.\n\nOutput format:\n{\n  \"response_draft\": \"...\"\n}"
+            },
+            {
+              "content": "=Create a private response draft for this customer feedback.\n\nCustomer:\n{{ $json.customer_name }}\n\nJob reference:\n{{ $json.job_reference }}\n\nLocation:\n{{ $json.location_name }}\n\nOverall rating:\n{{ $json.overall_rating }}\n\nTechnician rating:\n{{ $json.technician_rating }}\n\nFacility rating:\n{{ $json.facility_rating }}\n\nWaiting time rating:\n{{ $json.waiting_time_rating }}\n\nFeedback category:\n{{ $json.feedback_category }}\n\nCustomer comments:\n{{ $json.comments }}\n\nAI analysis:\n{{ $json.ai_reason }}\n\nWrite a concise, empathetic response that acknowledges the seriousness of the customer's concern, particularly any safety-related concern, without inventing actions, making promises, providing technical advice, or claiming that anyone has already contacted the customer."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"response_draft\": {\n      \"type\": \"string\"\n    }\n  },\n  \"additionalProperties\": false,\n  \"required\": [\n    \"response_draft\"\n  ]\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        -48
+      ],
+      "id": "ad001b57-96a5-4d13-aa97-7b976e8c9efa",
+      "name": "Generate High Severity Response Draft",
+      "credentials": {
+        "openAiApi": {
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst originalItems = $('Escalate High Severity').all();\n\nreturn inputItems.map((item, index) => {\n  const outputText = item.json.output?.[0]?.content?.[0]?.text;\n  const original = originalItems[index]?.json;\n\n  if (!outputText) {\n    throw new Error('AI high-severity response draft was not found.');\n  }\n\n  const parsed =\n    typeof outputText === 'string'\n      ? JSON.parse(outputText)\n      : outputText;\n\n  if (!parsed.response_draft) {\n    throw new Error('response_draft was not returned by the AI.');\n  }\n\n  return {\n    json: {\n      feedback_id: original.feedback_id,\n      response_draft: parsed.response_draft\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -48
+      ],
+      "id": "2965226f-cb02-4e3f-909e-a0fca85b5bf7",
+      "name": "Parse High Severity Response Draft"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "130b771c-091f-4040-b737-3118da88da35",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "positive",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -128,
+        -96
+      ],
+      "id": "0a0de855-dd81-41a5-af09-8282953d0ee4",
+      "name": "Check Sentiment"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback\nSET\n    routing_status = 'ready_to_post',\n    updated_at = NOW()\nWHERE id = '{{ $json.id }}'\nRETURNING\n    id,\n    sentiment,\n    sentiment_score,\n    severity,\n    severity_score,\n    confidence_score,\n    routing_status,\n    updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1216,
+        -432
+      ],
+      "id": "6ea14b3a-6fb7-4e6e-a395-ee3f439047d7",
+      "name": "Route to Ready to Post",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9147f1b9-23d9-447c-9a49-3b2b5d86f528",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "negative",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        96,
+        0
+      ],
+      "id": "80b27949-46a0-4d99-930c-5c2e0be9980b",
+      "name": "Check Negative Sentiment"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH claimed AS (\n    UPDATE public.feedback\n    SET\n        routing_status = 'processing',\n        updated_at = NOW()\n    WHERE id = '{{ $json.feedback_id }}'\n      AND routing_status = 'pending_analysis'\n    RETURNING\n        id,\n        feedback_request_id,\n        overall_rating,\n        technician_rating,\n        facility_rating,\n        waiting_time_rating,\n        feedback_category,\n        comments,\n        routing_status\n)\nSELECT\n    c.id AS feedback_id,\n    c.feedback_request_id,\n    c.overall_rating,\n    c.technician_rating,\n    c.facility_rating,\n    c.waiting_time_rating,\n    c.feedback_category,\n    c.comments,\n    c.routing_status,\n\n    cust.id AS customer_id,\n    cust.full_name AS customer_name,\n\n    v.id AS visit_id,\n    v.job_reference,\n\n    l.id AS location_id,\n    l.name AS location_name\n\nFROM claimed c\nJOIN public.feedback_requests fr\n    ON fr.id = c.feedback_request_id\nJOIN public.visits v\n    ON v.id = fr.visit_id\nJOIN public.customers cust\n    ON cust.id = v.customer_id\nJOIN public.locations l\n    ON l.id = v.location_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -1376,
+        -16
+      ],
+      "id": "76c70792-ad71-4f28-b24e-efda23068431",
+      "name": "Claim Feedback for Processing",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.feedback\nSET\n    routing_status = 'pending_analysis',\n    updated_at = NOW()\nWHERE routing_status = 'processing'\n  AND updated_at < NOW() - INTERVAL '15 minutes'\nRETURNING\n    id AS feedback_id,\n    routing_status,\n    updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -1824,
+        -16
+      ],
+      "id": "19243d62-5c39-426b-a819-928ae4fc4de5",
+      "name": "Recover Stuck Feedback",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.feedback_manager_alerts (\n    feedback_id,\n    alert_type,\n    severity,\n    alert_reason,\n    status\n)\nVALUES (\n    CAST('{{ $json.feedback_id }}' AS UUID),\n    'repeat_negative',\n    '{{ $json.severity }}',\n    '{{ $json.ai_reason.replace(/'/g, \"''\") }}',\n    'pending'\n)\nON CONFLICT (feedback_id, alert_type) DO NOTHING\nRETURNING\n    id,\n    feedback_id,\n    alert_type,\n    severity,\n    alert_reason,\n    status,\n    created_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1216,
+        -240
+      ],
+      "id": "e59e6d87-44df-4304-af9e-e2418226c928",
+      "name": "Create Manager Alert — Repeat Negative",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.feedback_manager_alerts (\n    feedback_id,\n    alert_type,\n    severity,\n    alert_reason,\n    status\n)\nVALUES (\n    CAST('{{ $json.feedback_id }}' AS UUID),\n    'high_severity',\n    '{{ $json.severity }}',\n    '{{ $json.ai_reason.replace(/'/g, \"''\") }}',\n    'pending'\n)\nON CONFLICT (feedback_id, alert_type) DO NOTHING\nRETURNING\n    id,\n    feedback_id,\n    alert_type,\n    severity,\n    alert_reason,\n    status,\n    created_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1216,
+        -48
+      ],
+      "id": "686de18c-1c06-42a8-be36-85bb6002acd8",
+      "name": "Create Manager Alert — High Severity",
+      "credentials": {
+        "postgres": {
+          "name": "Hajime Capstone"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "feedback-submitted",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2048,
+        -16
+      ],
+      "id": "27c5caed-afcb-4317-a0a5-b3cdda3fb9e7",
+      "name": "Feedback Submitted",
+      "webhookId": "896927ad-e035-48db-a8eb-927c4a66f248"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are generating a customer response for a car-care/auto-repair business.\n\nCustomer name: {{ $('Get Pending Feedback').item.json.customer_name }}\nOverall rating: {{ $('Get Pending Feedback').item.json.overall_rating }}\nFeedback category: {{ $('Get Pending Feedback').item.json.feedback_category }}\nCustomer comment: {{ $('Get Pending Feedback').item.json.comments }}\n\nThe customer has submitted positive feedback.\n\nWrite a short, warm, professional acknowledgement of the customer's positive feedback.\n\nRequirements:\n- Thank the customer for taking the time to provide feedback.\n- Acknowledge the positive experience expressed in their comment.\n- Personalize the response using their comment where appropriate.\n- Do not address the customer by name.\n- Do not invent facts or promises.\n- Do not mention AI, automation, analysis, sentiment, or internal processes.\n- Do not ask the customer to leave another review.\n- Keep it concise: 2–4 sentences.\n- Return ONLY valid JSON in exactly this format:\n\n{\n  \"response_draft\": \"Your response here\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        -432
+      ],
+      "id": "04c92a07-f336-4ea7-a6bd-63b252e0c164",
+      "name": "Generate Positive Response Draft",
+      "credentials": {
+        "openAiApi": {
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const output = $json.output?.[0]?.content?.[0]?.text;\n\nif (!output) {\n  throw new Error('No AI response was returned.');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(output);\n} catch (error) {\n  throw new Error(`AI response is not valid JSON: ${output}`);\n}\n\nif (!parsed.response_draft) {\n  throw new Error('AI response is missing response_draft.');\n}\n\nreturn {\n  json: {\n    feedback_id: $('Get Pending Feedback').item.json.feedback_id,\n    response_draft: parsed.response_draft,\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -432
+      ],
+      "id": "175c5873-ad36-4879-adfd-fabdcf4678d7",
+      "name": "Parse Positive Response Draft"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Pending Feedback": {
+      "main": [
+        [
+          {
+            "node": "Claim Feedback for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Feedback with AI": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Update Feedback Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Feedback Analysis": {
+      "main": [
+        [
+          {
+            "node": "Check Analysis Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Analysis Confidence": {
+      "main": [
+        [
+          {
+            "node": "Check Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route to Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Customer Negative History": {
+      "main": [
+        [
+          {
+            "node": "Check Repeat Negative",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Repeat Negative": {
+      "main": [
+        [
+          {
+            "node": "Escalate Repeat Negative",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check High Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check High Severity": {
+      "main": [
+        [
+          {
+            "node": "Escalate High Severity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route to Private Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Private Queue": {
+      "main": [
+        [
+          {
+            "node": "Generate Private Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Private Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Save Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate Repeat Negative": {
+      "main": [
+        [
+          {
+            "node": "Create Manager Alert — Repeat Negative",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Escalated Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse Escalated Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Escalated Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Save Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate High Severity": {
+      "main": [
+        [
+          {
+            "node": "Create Manager Alert — High Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate High Severity Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse High Severity Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse High Severity Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Save Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Route to Ready to Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Negative Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Negative Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Check Customer Negative History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route to Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Feedback for Processing": {
+      "main": [
+        [
+          {
+            "node": "Analyze Feedback with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recover Stuck Feedback": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Manager Alert — Repeat Negative": {
+      "main": [
+        [
+          {
+            "node": "Generate Escalated Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Manager Alert — High Severity": {
+      "main": [
+        [
+          {
+            "node": "Generate High Severity Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feedback Submitted": {
+      "main": [
+        [
+          {
+            "node": "Recover Stuck Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Ready to Post": {
+      "main": [
+        [
+          {
+            "node": "Generate Positive Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Positive Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse Positive Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Positive Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Save Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8c49b20b-f312-4573-83f2-aa52fc48131c",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "2lERgsZvil6ypvi9",
+  "tags": []
+}
